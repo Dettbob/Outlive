@@ -1,0 +1,5 @@
+# Publisher artwork is NOT part of this repo. Load it locally in-game (Custom artwork) instead.
+*.pdf
+Outlive map*
+/art/
+node_modules/

@@ -1,0 +1,2367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Outlive</title>
+<style>
+:root{
+  --bg:#0e1013;--panel:#171a1f;--panel2:#1e2329;--line:#2b323b;--text:#e8e4d9;--muted:#8d958f;
+  --rust:#e0642c;--acid:#b9e04b;--warn:#ffb020;--danger:#ff5d4d;--ok:#5fd18a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+b{font-weight:650}
+small{font-size:.8em}
+.muted{color:var(--muted)}.dim{opacity:.6}.small{font-size:.82em}
+#app{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr);grid-template-areas:"top top" "turn turn" "ev ev" "board side" "action side";gap:10px;padding:10px max(16px,env(safe-area-inset-right)) 34px max(16px,env(safe-area-inset-left));max-width:1500px;margin:0 auto;min-height:100vh}
+#top{grid-area:top;display:flex;align-items:stretch;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 150px 8px 12px;position:relative}
+.brand{font-weight:800;letter-spacing:.22em;color:var(--rust);display:flex;flex-direction:column;justify-content:center;font-size:17px}
+.brand small{letter-spacing:.1em;font-weight:500;color:var(--muted);font-size:9px;text-transform:uppercase}
+.convoy{flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;min-width:0}
+.pip{border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--panel2);display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.pip .pd{font-size:9px;letter-spacing:.12em;color:var(--muted)}
+.pip .pe{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pip .pr{font-size:10px;color:var(--warn)}
+.pip.cur{border-color:var(--rust);box-shadow:0 0 0 1px var(--rust) inset}
+.pip.past{opacity:.7}.pip.solved .pe{text-decoration:line-through;color:var(--ok)}
+.tinfo{display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:flex-end}
+.pill{border-radius:99px;padding:2px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:var(--panel2);border:1px solid var(--line)}
+.pill.day{background:#3a2d14;border-color:#6a4f1b;color:#ffd47a}
+.pill.night{background:#1b2440;border-color:#334272;color:#a9bdff}
+.pill.dawn{background:#3a2216;border-color:#6a3a22;color:#ffb28a}
+.first{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.dot.big{width:18px;height:18px;margin:0}
+.first .dot{margin:0}
+.tbtn{display:flex;flex-direction:column;gap:4px}
+.ib{width:30px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--panel2)}
+#events{grid-area:ev;display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:34px}
+.elabel{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+.evc{display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:#2a1b17;border:1px solid #6a3326;border-radius:9px;padding:4px 9px;line-height:1.2}
+.evc b{font-size:12px;color:#ffb09a}.evc span{font-size:11px;color:var(--muted)}
+.evc.small{background:#1b2a1f;border-color:#2f5a3b}.evc.small b{color:#9fe6b4}
+.cc{font-size:12px;background:#0006;border-radius:5px;padding:0 4px;white-space:nowrap}
+#board{grid-area:board;position:relative;aspect-ratio:16/11;background:
+  radial-gradient(circle at 50% 50%,#1d2318 0,#12150f 70%),var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#board::before{content:"";position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:5% 5%;pointer-events:none}
+.node{position:absolute;transform:translate(-50%,-50%);width:21%;min-width:128px;background:#1a1f17ee;border:1px solid #3b4a30;border-radius:11px;padding:5px 7px 6px;cursor:default;transition:.15s;backdrop-filter:blur(2px)}
+.node.base{border-color:#8a5a3a;background:#241a15ee}
+.node.dam{border-color:#3a6a8a;background:#14202aee}
+.node.city{border-color:#7a6a3a;background:#231f12ee}
+.node.cargo{border-color:#7a4a6a;background:#241520ee}
+.nh{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#cfd8c0;margin-bottom:2px}
+.pool{font-size:15px;display:flex;align-items:center;gap:5px}.pool small{color:var(--muted);font-size:10px}
+.game{font-size:11px;color:#c9c3a8}
+.eqs{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.spots{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:2px}
+.spot{font-size:10.5px;background:#0005;border-radius:5px;padding:1px 4px;display:flex;align-items:center;gap:2px;white-space:nowrap}
+.spot b{color:var(--warn);margin-right:2px}.spot.hook{opacity:.65;border:1px dashed #7a4a6a}
+.spot i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-left:2px}
+.hrow{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;min-height:24px}
+.hero{width:24px;height:24px;border-radius:50%;border:2px solid var(--c);background:transparent;color:var(--c);font-weight:800;font-size:12px;padding:0;display:grid;place-items:center;cursor:default}
+.hero.act{background:var(--c);color:#111;box-shadow:0 0 0 2px #0008,0 0 10px var(--c)}
+.hero.turn{animation:pulse 1s infinite}
+.hero.pick{cursor:pointer;animation:pulse 1s infinite}
+.hero.sel{transform:scale(1.25);box-shadow:0 0 0 3px #fff}
+@keyframes pulse{50%{box-shadow:0 0 0 5px #fff3}}
+.node.dest{border-color:var(--acid);box-shadow:0 0 0 2px var(--acid),0 0 18px #b9e04b55;cursor:pointer;z-index:3}
+.node.dim{opacity:.45}.node.here{border-color:#fff;box-shadow:0 0 0 2px #fff6}
+.exo{font-size:9px;color:var(--warn);letter-spacing:.1em;text-transform:uppercase}
+.eq{display:inline-flex;align-items:center;gap:3px;border:1px solid #4a4a3a;background:#2a2a20;border-radius:6px;padding:1px 6px;font-size:11px;white-space:nowrap}
+.eq .sym{font-size:11px}
+.eq.broken{border-style:dashed;opacity:.8}.eq.ready{border-color:#4a7a4a;background:#1e2f1e}.eq.used{opacity:.45}
+#action{grid-area:action;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:86px}
+.ahead{margin-bottom:6px}.ap{color:var(--acid);font-weight:700}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px}
+.act{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:48px}
+.act:hover{border-color:var(--acid)}.act.end{border-style:dashed;color:var(--muted)}
+.act small{color:var(--muted)}
+.ticker .tick{color:var(--muted);font-size:13px;padding:1px 0}.tick.good{color:#9fe6b4}.tick.bad{color:#ffb09a}.tick.event{color:#ffd47a}.tick.phase{color:#fff;font-weight:600}
+#side{grid-area:side;display:flex;flex-direction:column;gap:8px;min-width:0}
+#tabs{display:flex;gap:5px;flex-wrap:wrap}
+.tab{display:flex;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:5px 9px;gap:2px}
+.tab.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}.tab small{margin-left:6px;color:var(--muted)}
+#shelter{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:9px}
+.shead{display:flex;align-items:center;gap:9px}.shead .sub{font-size:11px;color:var(--muted)}.shead .sp{margin-left:auto;font-size:24px;font-weight:800;color:var(--acid);text-align:right;line-height:1}.shead .sp small{display:block;font-size:9px;color:var(--muted);letter-spacing:.1em}
+.res{display:flex;flex-wrap:wrap;gap:5px}
+.rc{display:inline-flex;align-items:center;gap:3px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px 7px}
+.gauge{display:flex;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+.g{flex:1;font-style:normal;font-size:9px;text-align:center;padding:3px 0;color:#0009}
+.g.pos{background:#4aa86a}.g.zero{background:#9aa84a}.g.neg{background:#a8603a}
+.g.neg:nth-child(n+11){background:#a83a3a}.g.on{background:#fff;color:#000;font-weight:800}
+.airlock{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 9px}
+.al{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}.al small{letter-spacing:0;text-transform:none;margin-left:6px}
+.arow{display:flex;align-items:center;gap:5px;margin:2px 0}.arow small{margin-left:auto;color:#7fc3ff}
+.sv{width:13px;height:13px;border-radius:50%;border:1.5px solid #556;display:inline-block;background:transparent}
+.sv.f{background:var(--c);border-color:var(--c)}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px}
+.room{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;gap:3px}
+.room.unbuilt{opacity:.55;border-style:dashed}.room.active{border-color:var(--acid);box-shadow:0 0 0 1px #b9e04b55 inset}.room.used{opacity:.75}
+.rh{display:flex;justify-content:space-between;gap:4px}.rh b{font-size:12.5px}.up{font-size:11px;color:var(--muted);white-space:nowrap}
+.rw{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--warn)}
+.slots{display:flex;gap:3px;flex-wrap:wrap}
+.rt{font-size:11px;color:#b8bdb4;line-height:1.25}
+.ctl{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.mini{background:#0004;border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-size:11.5px;white-space:nowrap}
+.mini.go{border-color:var(--acid);color:var(--acid)}
+.eqwrap{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 9px}
+.eqline{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}.eqb{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.recruit{background:#1c2a1f;border:1px solid #2f5a3b;border-radius:10px;padding:7px 9px}
+.stepper{display:flex;align-items:center;gap:7px;margin-top:4px}
+.stepper button{width:32px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:16px}
+.stepper button.mini{width:auto;font-size:12px;height:auto}
+.stepper span{min-width:22px;text-align:center;font-weight:700}
+.stepper em{font-style:normal;flex:1}
+.stepper.big{justify-content:center;font-size:24px;margin:10px 0}.stepper.big button{width:46px;height:42px}
+#logwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+#logwrap summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#log{max-height:200px;overflow:auto;margin-top:6px}
+.ll{font-size:12px;color:#b6bbb2;padding:1px 0}.ll.good{color:#9fe6b4}.ll.bad{color:#ffb09a}.ll.event{color:#ffd47a}.ll.phase{color:#fff;font-weight:600;border-top:1px solid var(--line);margin-top:4px;padding-top:3px}
+/* modal */
+#modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:50;padding:12px}
+#modal.on{display:flex}
+.mbox{background:var(--panel);border:1px solid #3a424c;border-radius:16px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px #000a}
+.mbox.wide{max-width:680px}
+.mbox h2{margin:0 0 6px;font-size:20px;letter-spacing:.04em}
+.mtext{color:#c4c8c0;margin:6px 0 12px;line-height:1.45}
+.btn{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px 14px;margin-top:8px}
+.btn.pri{background:var(--rust);border-color:var(--rust);color:#111;font-weight:700}
+.btn.opt{align-items:flex-start;text-align:left}.btn.opt.on{border-color:var(--acid);background:#222d1c}
+.btn .bs{font-size:11.5px;color:var(--muted);font-weight:400;line-height:1.3}
+.olist{display:flex;flex-direction:column}
+.mrow{display:flex;gap:8px}.mrow .btn{flex:1}
+.seg{display:flex;align-items:center;gap:6px;margin:10px 0}.seg span{margin-right:auto;color:var(--muted)}
+.seg button{width:44px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel2)}.seg button.on{background:var(--rust);color:#111;border-color:var(--rust);font-weight:700}
+.seat{display:flex;align-items:center;gap:8px;margin:6px 0}
+.seat input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text);font:inherit;min-width:0}
+.tg{width:76px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--panel2)}.tg.on{border-color:var(--acid);color:var(--acid)}
+.pile{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.pile span{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 8px}
+table.score{width:100%;border-collapse:collapse;margin:8px 0}table.score td,table.score th{padding:6px 5px;text-align:center;border-bottom:1px solid var(--line)}
+table.score td:first-child,table.score th:first-child{text-align:left}table.score tr.win td{color:var(--acid)}
+table.score small{color:var(--muted);margin-left:2px}
+#app:not(.live) #top,#app:not(.live) #events,#app:not(.live) #board,#app:not(.live) #side,#app:not(.live) #action{visibility:hidden}
+@media (max-width:900px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "turn" "ev" "board" "action" "side";padding:8px max(16px,env(safe-area-inset-right)) 34px max(16px,env(safe-area-inset-left));gap:8px}
+  #top{flex-wrap:wrap}.brand{font-size:14px}.convoy{order:3;flex-basis:100%}
+  #board{aspect-ratio:4/4.6}
+  .node{width:30%;min-width:0;padding:4px 5px}.nh{font-size:9.5px}.pool{font-size:13px}.game{font-size:10px}
+  .hero{width:21px;height:21px;font-size:11px}
+  .spots{grid-template-columns:1fr}.spot{font-size:9.5px}
+  .eq{font-size:10px;padding:0 4px}
+  .rooms{grid-template-columns:1fr 1fr}
+}
+/* ===== v0.2 additions ===== */
+#bsvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#board{background:#14190f;transition:filter 1.2s}
+#board .arrow{fill:none;stroke:#c9e86a;stroke-width:3;stroke-linecap:round;stroke-dasharray:7 9;animation:flow 1.1s linear infinite;opacity:.9;filter:drop-shadow(0 0 3px #b9e04b88)}
+#board .arrowhead{fill:#c9e86a;filter:drop-shadow(0 0 3px #b9e04b88)}
+@keyframes flow{to{stroke-dashoffset:-16}}
+.node{overflow:hidden;z-index:2}
+.node>*{position:relative;z-index:1}
+.node .art{position:absolute!important;inset:0;width:100%;height:100%;z-index:0!important;opacity:.28;pointer-events:none;color:#9ab07a}
+.node.base .art{color:#c9855a}.node.dam .art{color:#6aa8cf}.node.city .art{color:#c7b36a}.node.cargo .art{color:#c46aa5}
+.node.flash{animation:nflash .9s}
+@keyframes nflash{0%{box-shadow:0 0 0 0 #fff}30%{box-shadow:0 0 0 4px #fff8,0 0 26px #fff6}100%{box-shadow:0 0 0 0 #fff0}}
+.node.shake{animation:shake .6s}
+@keyframes shake{20%{transform:translate(calc(-50% - 6px),-50%)}40%{transform:translate(calc(-50% + 6px),-50%)}60%{transform:translate(calc(-50% - 4px),-50%)}80%{transform:translate(calc(-50% + 4px),-50%)}}
+.node.shake{border-color:var(--danger)!important;box-shadow:0 0 22px #ff5d4d99}
+.hub{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:1;width:21%;min-width:96px}
+.hub .hd{font-size:11px;letter-spacing:.3em;color:#cfe;opacity:.8}
+.hub .hn{font-size:clamp(34px,6vw,64px);font-weight:800;line-height:1;color:#e8f3d0;text-shadow:0 0 18px #0009}
+.hub .hp{font-size:clamp(22px,3vw,30px);margin:2px 0}
+.hub .hr{font-size:11px;color:var(--warn);background:#0007;border-radius:99px;padding:1px 9px;display:inline-block}
+.hero{transition:transform .15s,box-shadow .15s}
+.hero.turn{animation:pulse 1s infinite}
+.hero.ghost{position:fixed;z-index:80;margin:0;pointer-events:none;box-shadow:0 0 0 3px #fff8,0 0 22px var(--c)}
+@keyframes heroin{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.hero.arrived{animation:heroin .35s}
+/* night tint */
+#app.night #board{filter:saturate(.7) brightness(.78) hue-rotate(10deg)}
+#sky{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 1.6s;background:radial-gradient(ellipse at 50% 40%,#0000 45%,#04061a88 110%)}
+#sky.on{opacity:1}
+/* turn bar */
+#turnbar{grid-area:turn;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--c,#555);border-radius:12px;padding:8px 12px;min-height:50px;transition:border-color .3s,background .3s}
+#turnbar.you{background:linear-gradient(90deg,#26331a,var(--panel) 70%);border-color:var(--acid);border-left-color:var(--c)}
+#turnbar.ai{background:linear-gradient(90deg,#2a2218,var(--panel) 70%)}
+#turnbar .who{display:flex;flex-direction:column;min-width:150px;flex:1 1 220px;line-height:1.25}
+#turnbar .who b{font-size:15px;letter-spacing:.04em}
+#turnbar .who b.y{color:var(--acid)}
+#turnbar .cap{font-size:12.5px;color:#d6c9a8;min-height:16px}
+#turnbar .spin{display:inline-block;width:12px;height:12px;border:2px solid #ffffff44;border-top-color:var(--warn);border-radius:50%;animation:spin .8s linear infinite;margin-right:7px;vertical-align:-1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#turnbar .order{display:flex;gap:5px;flex-wrap:wrap}
+.pc{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:99px;padding:2px 9px;font-size:11.5px;color:var(--muted);background:var(--panel2)}
+.pc .dot{margin:0;width:9px;height:9px}.pc em{font-style:normal;font-size:9px;border:1px solid #666;border-radius:4px;padding:0 3px}
+.pc.cur{color:#fff;border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset,0 0 12px color-mix(in srgb,var(--c) 45%,transparent)}
+.endturn{background:var(--acid);color:#17200a;border:0;border-radius:10px;padding:10px 18px;font-weight:800;letter-spacing:.04em;animation:pulseb 1.6s infinite}
+.endturn:disabled{animation:none;background:var(--panel2);color:var(--muted)}
+@keyframes pulseb{50%{box-shadow:0 0 0 6px #b9e04b33}}
+/* floating pops */
+#fxlayer{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+.pop{position:fixed;transform:translate(-50%,0);font-weight:800;font-size:18px;white-space:nowrap;padding:2px 10px;border-radius:99px;background:#000c;border:1.5px solid #fff5;color:#fff;text-shadow:0 1px 2px #000;animation:rise 1.9s ease-out forwards}
+.pop.gain,.pop.hunt{color:#c9ff7a;border-color:#8fd04a}.pop.good,.pop.surv,.pop.build,.pop.feed{color:#9fe6b4;border-color:#5fd18a}
+.pop.loss,.pop.hit,.pop.rad,.pop[class*="surv-"]{color:#ffb09a;border-color:#ff5d4d}
+.pop.big{font-size:22px}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,10px) scale(.6)}12%{opacity:1;transform:translate(-50%,0) scale(1.15)}22%{transform:translate(-50%,-4px) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-62px) scale(1)}}
+/* banner */
+#banner{position:fixed;left:0;right:0;top:34%;z-index:75;text-align:center;pointer-events:none;opacity:0;transform:scaleY(.4)}
+#banner.on{animation:bann 2.4s ease-in-out forwards}
+@keyframes bann{0%{opacity:0;transform:scaleY(.2)}12%{opacity:1;transform:scaleY(1)}85%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(.2)}}
+#banner .bb{display:inline-block;min-width:min(520px,92vw);padding:16px 24px 14px;background:linear-gradient(90deg,#0000,#000d 15%,#000d 85%,#0000);}
+#banner h1{margin:0;font-size:clamp(30px,6vw,54px);letter-spacing:.3em;text-transform:uppercase;color:var(--rust);text-shadow:0 0 24px #e0642c88;padding-left:.3em}
+#banner.night h1{color:#9db4ff;text-shadow:0 0 24px #4a6aff88}
+#banner p{margin:4px 0 0;color:#d9d3c0;font-size:13px;letter-spacing:.08em}
+/* quick icons / pause */
+#cluster{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:60;display:none;gap:6px}
+#cluster.on{display:flex}
+.ibtn{width:40px;height:40px;border-radius:11px;border:1px solid #3a424c;background:#171a1fee;display:grid;place-items:center;backdrop-filter:blur(3px)}
+.ibtn:hover{border-color:var(--rust)}
+.ibtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ibtn.off{color:#7a7f78}.ibtn.off .x{display:block}.ibtn .x{display:none}
+#ver{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(6px,env(safe-area-inset-bottom));font-size:11px;color:#8d958f;opacity:.85;z-index:90;pointer-events:none;letter-spacing:.06em;text-shadow:0 1px 3px #000}
+/* settings widgets */
+.setrow{display:flex;align-items:center;gap:10px;margin:9px 0;flex-wrap:wrap}
+.setrow>span{flex:1 1 120px}
+.sw{width:48px;height:26px;border-radius:99px;border:1px solid var(--line);background:var(--panel2);position:relative;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#777;transition:.2s}
+.sw.on{background:#2c3f1a;border-color:var(--acid)}.sw.on::after{left:25px;background:var(--acid)}
+input[type=range]{accent-color:var(--rust);width:140px;max-width:40vw}
+.segb{display:flex;gap:4px}.segb button{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 10px;font-size:12.5px}.segb button.on{background:var(--rust);color:#111;border-color:var(--rust);font-weight:700}
+/* main menu */
+#menu{position:fixed;inset:0;z-index:40;display:none;overflow:hidden;background:linear-gradient(#0a0d14,#1d1612 62%,#2a1b10)}
+#menu.on{display:block}
+#menu svg.scene{position:absolute;inset:0;width:100%;height:100%}
+#menu .mc{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left));overflow:auto}
+#menu h1{margin:0;font-size:clamp(46px,11vw,110px);letter-spacing:.22em;padding-left:.22em;color:#e8c9a0;text-shadow:0 0 30px #e0642c99,0 4px 0 #5a2a10;font-weight:900;animation:flick 6s infinite}
+@keyframes flick{0%,92%,100%{opacity:1}93%{opacity:.7}94%{opacity:1}96%{opacity:.8}}
+#menu .tag{color:#c9b79a;letter-spacing:.35em;text-transform:uppercase;font-size:12px;margin:2px 0 26px;padding-left:.35em;text-align:center}
+#menu .mbtns{display:flex;flex-direction:column;gap:9px;width:min(330px,100%)}
+#menu .mbtns button{background:#171a1fcc;border:1px solid #5a4a3a;border-radius:11px;padding:13px 16px;font-size:16px;letter-spacing:.12em;text-transform:uppercase;transition:.15s;backdrop-filter:blur(3px)}
+#menu .mbtns button:hover{background:var(--rust);color:#14100c;border-color:var(--rust);transform:translateX(4px)}
+#menu .mbtns button.pri{background:var(--rust);color:#14100c;font-weight:800;border-color:var(--rust)}
+#menu .hint{margin-top:16px;color:#a99a80;font-size:12px;min-height:16px}
+.dust{animation:drift linear infinite}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(-120px,40px)}}
+/* pause */
+#pausem{position:fixed;inset:0;z-index:95;background:#000c;display:none;align-items:center;justify-content:center;padding:12px}
+#pausem.on{display:flex}
+/* coach */
+#coach{position:fixed;left:50%;transform:translateX(-50%);bottom:max(30px,env(safe-area-inset-bottom));z-index:48;width:min(560px,calc(100vw - 32px));background:#1e2a14f2;border:1.5px solid var(--acid);border-radius:14px;padding:12px 14px;box-shadow:0 10px 40px #000a;display:none;animation:coachin .4s}
+#coach.on{display:block}
+@keyframes coachin{from{opacity:0;transform:translate(-50%,20px)}}
+#coach .ct{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--acid);margin-bottom:3px}
+#coach .cb{font-size:14px;line-height:1.45;color:#e6ecd6}
+#coach .cr{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+#coach button{border:1px solid var(--acid);background:transparent;color:var(--acid);border-radius:8px;padding:5px 12px}
+/* tutorial slides */
+.slide{text-align:center}
+.slide .viz{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 12px;font-size:30px;min-height:90px}
+.slide .viz svg{max-width:100%;height:auto}
+.dots{display:flex;justify-content:center;gap:6px;margin:6px 0}.dots i{width:8px;height:8px;border-radius:50%;background:#444}.dots i.on{background:var(--rust)}
+.chg{animation:chg .9s}
+@keyframes chg{0%{background:#b9e04b;color:#000}100%{background:var(--panel2)}}
+.aiplay .hero.turn{box-shadow:0 0 0 4px #fff7,0 0 16px var(--c)}
+@media (max-width:900px){
+  #top{padding-right:130px}
+  .hub{width:24%}
+  #banner{top:26%}
+  #turnbar .order{display:none}
+}
+@media (prefers-reduced-motion:reduce){#board .arrow{animation:none}}
+#app{grid-template-rows:auto auto auto auto 1fr}
+#action{align-self:start}
+@media (max-width:900px){#app{grid-template-rows:none}}
+.hrow .hero{flex:0 0 auto;align-self:flex-start;aspect-ratio:1}
+
+/* custom art */
+#board.map{background-size:100% 100%;background-position:center}
+#board.map .node{background:#0b0f08b8!important;backdrop-filter:blur(1px)}
+#board.map .arrow{stroke:#d7f07a;stroke-width:3.5}
+.por{width:44px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #5a4a3a;flex:none;margin-right:8px}
+.por.sm{width:30px;height:38px;margin:0 8px 0 0}
+.por.map{width:70px;height:56px}
+.por.ph{display:inline-grid;place-items:center;background:#222;color:#777}
+.btn.opt.haspor .bl{display:flex;align-items:center;text-align:left}
+.shead .por.sm{margin-right:0}
+.artrow{display:flex;align-items:center;gap:6px;margin:6px 0}
+.al2{flex:1;display:flex;align-items:center;min-width:0}
+.al2 input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text);font:inherit}
+#board.map .node.dim{opacity:.75}
+
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="app">
+  <header id="top"></header>
+  <div id="turnbar"></div>
+  <div id="events"></div>
+  <main id="board"></main>
+  <section id="action"></section>
+  <aside id="side">
+    <div id="tabs"></div>
+    <div id="shelter"></div>
+    <details id="logwrap"><summary>Game log</summary><div id="log"></div></details>
+  </aside>
+</div>
+<div id="menu"></div>
+<div id="cluster"></div>
+<div id="fxlayer"></div>
+<div id="banner"></div>
+<div id="coach"></div>
+<div id="modal"></div>
+<div id="pausem"></div>
+<div id="ver"></div>
+<script>
+/* =====================================================================
+   OUTLIVE — procedural audio (Web Audio). No samples: music and effects
+   are synthesised at runtime, so there is nothing to download.
+   ===================================================================== */
+const Sound=(function(){
+  const S={music:true,sfx:true,mv:.55,sv:.8};
+  try{const v=JSON.parse(localStorage.getItem('outlive.audio')||'null');if(v)Object.assign(S,v)}catch(e){}
+  const save=()=>{try{localStorage.setItem('outlive.audio',JSON.stringify(S))}catch(e){}};
+  let ctx=null,master,musicBus,sfxBus,reverb,wet,noiseBuf,droneO=[],droneF,windF,windG,delay,mood='menu',timer=null,started=false;
+  let nextPad=0,nextNote=0,nextClang=0,nextBeat=0,rootNow=55;
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const hz=(f0,st)=>f0*Math.pow(2,st/12);
+
+  function impulse(sec,decay){
+    const rate=ctx.sampleRate,len=rate*sec,b=ctx.createBuffer(2,len,rate);
+    for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay)}
+    return b;
+  }
+  function init(){
+    if(ctx)return true;
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+    try{ctx=new AC()}catch(e){return false}
+    master=ctx.createGain();master.gain.value=.9;master.connect(ctx.destination);
+    musicBus=ctx.createGain();musicBus.gain.value=S.music?S.mv:0;
+    sfxBus=ctx.createGain();sfxBus.gain.value=S.sfx?S.sv:0;
+    reverb=ctx.createConvolver();reverb.buffer=impulse(3.4,2.6);
+    wet=ctx.createGain();wet.gain.value=.55;
+    musicBus.connect(master);musicBus.connect(reverb);reverb.connect(wet);wet.connect(master);
+    sfxBus.connect(master);
+    const nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),d=nb.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;noiseBuf=nb;
+    // echo for lonely notes
+    delay=ctx.createDelay(1.5);delay.delayTime.value=.46;
+    const fb=ctx.createGain();fb.gain.value=.42;const dl=ctx.createBiquadFilter();dl.type='lowpass';dl.frequency.value=1700;
+    delay.connect(dl);dl.connect(fb);fb.connect(delay);dl.connect(musicBus);
+    buildDrone();
+    return true;
+  }
+  function buildDrone(){
+    const g=ctx.createGain();g.gain.value=.22;
+    droneF=ctx.createBiquadFilter();droneF.type='lowpass';droneF.frequency.value=190;droneF.Q.value=2;
+    [['sawtooth',1,-7],['sawtooth',1,6],['sine',.5,0],['triangle',2,0]].forEach(([t,m,det])=>{
+      const o=ctx.createOscillator();o.type=t;o.frequency.value=55*m;o.detune.value=det;
+      const og=ctx.createGain();og.gain.value=t==='sine'?.9:.35;o.connect(og);og.connect(droneF);o.start();droneO.push({o,m});
+    });
+    droneF.connect(g);g.connect(musicBus);
+    const lfo=ctx.createOscillator(),lg=ctx.createGain();lfo.frequency.value=.045;lg.gain.value=70;lfo.connect(lg);lg.connect(droneF.frequency);lfo.start();
+    // wind
+    const ns=ctx.createBufferSource();ns.buffer=noiseBuf;ns.loop=true;
+    windF=ctx.createBiquadFilter();windF.type='bandpass';windF.frequency.value=620;windF.Q.value=.9;
+    windG=ctx.createGain();windG.gain.value=.05;
+    const l2=ctx.createOscillator(),l2g=ctx.createGain();l2.frequency.value=.07;l2g.gain.value=260;l2.connect(l2g);l2g.connect(windF.frequency);l2.start();
+    const l3=ctx.createOscillator(),l3g=ctx.createGain();l3.frequency.value=.11;l3g.gain.value=.03;l3.connect(l3g);l3g.connect(windG.gain);l3.start();
+    ns.connect(windF);windF.connect(windG);windG.connect(musicBus);ns.start();
+  }
+  const MOODS={
+    menu:{root:55,pads:[[0,7,12,15],[-4,3,8,12],[-7,0,5,10]],scale:[0,3,5,7,10,12,15,17],noteGap:[3,6],wind:.05,beat:false,cut:190},
+    day:{root:55,pads:[[0,7,12,15],[-4,3,8,12],[-2,5,10,14],[-7,0,5,9]],scale:[0,3,5,7,10,12,15],noteGap:[2.6,5.5],wind:.06,beat:false,cut:230},
+    night:{root:49,pads:[[0,7,13,15],[-4,3,8,13],[0,5,10,13]],scale:[0,1,5,7,8,12,13],noteGap:[4,8],wind:.035,beat:true,cut:150},
+    tense:{root:51.9,pads:[[0,6,12,13],[1,7,12,18]],scale:[0,1,6,7,13],noteGap:[3,6],wind:.07,beat:true,cut:260}
+  };
+  function pad(t){
+    const M=MOODS[mood],ch=pick(M.pads),f0=hz(110,0)*(M.root/55);
+    ch.forEach((st,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+      o.type=i%2?'triangle':'sawtooth';o.frequency.value=hz(f0,st);o.detune.value=rnd(-9,9);
+      f.type='lowpass';f.frequency.value=M.cut*3.2;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05,t+3.2);g.gain.linearRampToValueAtTime(.035,t+6);g.gain.exponentialRampToValueAtTime(.0001,t+10.5);
+      o.connect(f);f.connect(g);g.connect(musicBus);o.start(t);o.stop(t+11);
+    });
+  }
+  function note(t){
+    const M=MOODS[mood],st=pick(M.scale)+(Math.random()<.25?12:0),f=hz(220*(M.root/55),st);
+    const o=ctx.createOscillator(),o2=ctx.createOscillator(),g=ctx.createGain();
+    o.type='triangle';o2.type='sine';o.frequency.value=f;o2.frequency.value=f*2.003;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.09,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+3);
+    o.connect(g);o2.connect(g);g.connect(musicBus);g.connect(delay);o.start(t);o2.start(t);o.stop(t+3.1);o2.stop(t+3.1);
+  }
+  function clang(t){
+    const base=rnd(170,320);
+    [1,2.76,5.4,8.93].forEach((r,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=base*r;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05/(i+1),t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+2.2/(1+i*.4));
+      o.connect(g);g.connect(musicBus);g.connect(delay);o.start(t);o.stop(t+2.4);
+    });
+  }
+  function beat(t){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(62,t);o.frequency.exponentialRampToValueAtTime(34,t+.3);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.2,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.4);
+    o.connect(g);g.connect(musicBus);o.start(t);o.stop(t+.45);
+  }
+  function tick(){
+    if(!ctx||!S.music)return;
+    const t=ctx.currentTime,M=MOODS[mood];
+    if(t>=nextPad){pad(t+.05);nextPad=t+rnd(7,10)}
+    if(t>=nextNote){note(t+.05);nextNote=t+rnd(M.noteGap[0],M.noteGap[1])}
+    if(t>=nextClang){clang(t+.05);nextClang=t+rnd(16,32)}
+    if(M.beat&&t>=nextBeat){beat(t+.05);setTimeout(()=>{if(ctx&&S.music)beat(ctx.currentTime+.02)},330);nextBeat=t+rnd(2.2,3.2)}
+  }
+  function applyMood(){
+    if(!ctx)return;
+    const M=MOODS[mood],t=ctx.currentTime;
+    droneO.forEach(d=>d.o.frequency.setTargetAtTime(M.root*d.m,t,2.5));
+    droneF.frequency.setTargetAtTime(M.cut,t,2);
+    windG.gain.setTargetAtTime(M.wind,t,2);
+  }
+  function startTimer(){if(timer)return;timer=setInterval(tick,600);tick()}
+  function stopTimer(){if(timer){clearInterval(timer);timer=null}}
+
+  /* ---- effects ---- */
+  function env(g,t,a,d,peak){g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d)}
+  function tone(type,f,t,a,d,peak,f2){
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);
+    if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+a+d);
+    env(g,t,a,d,peak);o.connect(g);g.connect(sfxBus);o.start(t);o.stop(t+a+d+.05);
+  }
+  function nz(t,d,peak,type,f,q,f2){
+    const s=ctx.createBufferSource();s.buffer=noiseBuf;
+    const fl=ctx.createBiquadFilter();fl.type=type;fl.frequency.setValueAtTime(f,t);if(f2)fl.frequency.exponentialRampToValueAtTime(f2,t+d);fl.Q.value=q||1;
+    const g=ctx.createGain();env(g,t,.004,d,peak);s.connect(fl);fl.connect(g);g.connect(sfxBus);s.start(t,Math.random()*1.5);s.stop(t+d+.05);
+  }
+  const FX={
+    click(t){tone('square',920,t,.001,.045,.07)},
+    select(t){tone('triangle',540,t,.002,.08,.1);tone('triangle',810,t+.05,.002,.08,.08)},
+    move(t){nz(t,.4,.16,'bandpass',260,1.2,1300);[0,.13,.26].forEach(d=>nz(t+d,.07,.12,'lowpass',520))},
+    gain(t){[0,.07,.14].forEach((d,i)=>tone('sine',1250+i*230,t+d,.002,.2,.11))},
+    hunt(t){tone('sine',140,t,.002,.28,.4,38);nz(t,.22,.25,'lowpass',900);tone('sawtooth',90,t+.12,.01,.3,.05,60)},
+    hit(t){nz(t,.16,.4,'lowpass',1500);tone('sine',115,t,.002,.26,.45,44);tone('sawtooth',200,t+.02,.002,.2,.08,110)},
+    loss(t){tone('sawtooth',340,t,.005,.4,.11,140)},
+    good(t){[523,659,784].forEach((f,i)=>tone('triangle',f,t+i*.09,.005,.4,.13))},
+    surv(t){tone('sine',660,t,.01,.45,.12);tone('sine',990,t+.1,.01,.55,.1)},
+    survLoss(t){tone('sine',330,t,.01,.6,.14,150);tone('triangle',247,t+.12,.01,.6,.08,110)},
+    build(t){[0,.2].forEach(d=>{nz(t+d,.09,.35,'bandpass',1800,3);tone('square',210,t+d,.002,.1,.08,130)});tone('triangle',784,t+.5,.005,.5,.09)},
+    rad(t){for(let i=0;i<7;i++)nz(t+Math.random()*.6,.02,.22,'highpass',3200)},
+    alarm(t){[0,.34,.68].forEach((d,i)=>tone('sawtooth',i%2?330:470,t+d,.01,.3,.09))},
+    dawn(t){tone('sine',196,t,.7,1.5,.13,392);tone('triangle',294,t+.1,.7,1.4,.08,588)},
+    night(t){tone('sine',370,t,.5,1.6,.13,185);tone('triangle',277,t,.6,1.5,.07,138)},
+    turn(t){tone('triangle',700,t,.005,.14,.1);tone('triangle',1050,t+.11,.005,.2,.1)},
+    feed(t){tone('sine',440,t,.01,.25,.08);tone('sine',554,t+.08,.01,.3,.07)},
+    win(t){[392,494,587,784,988].forEach((f,i)=>tone('triangle',f,t+i*.14,.01,.9,.14))},
+    lose(t){[330,262,196].forEach((f,i)=>tone('sawtooth',f,t+i*.25,.01,.7,.08))},
+    open(t){tone('triangle',420,t,.003,.1,.07);tone('triangle',630,t+.04,.003,.12,.07)},
+    close(t){tone('triangle',630,t,.003,.1,.06);tone('triangle',420,t+.04,.003,.12,.06)}
+  };
+
+  const api={
+    state:S,
+    unlock(){
+      if(!init())return;
+      if(ctx.state==='suspended')ctx.resume();
+      if(!started){started=true;applyMood();if(S.music){const t=ctx.currentTime;nextPad=t;nextNote=t+1.5;nextClang=t+8;startTimer()}}
+    },
+    sfx(name){
+      if(!S.sfx||!ctx||!FX[name])return;
+      if(ctx.state==='suspended')ctx.resume();
+      try{FX[name](ctx.currentTime+.01)}catch(e){}
+    },
+    setMood(m){if(!MOODS[m]||m===mood)return;mood=m;applyMood()},
+    setMusic(on){
+      S.music=!!on;save();if(!ctx)return;
+      musicBus.gain.setTargetAtTime(S.music?S.mv:0,ctx.currentTime,.4);
+      if(S.music){const t=ctx.currentTime;nextPad=t;nextNote=t+1;startTimer()}else stopTimer();
+    },
+    setSfx(on){S.sfx=!!on;save();if(ctx)sfxBus.gain.setTargetAtTime(S.sfx?S.sv:0,ctx.currentTime,.05)},
+    setMusicVol(v){S.mv=v;save();if(ctx&&S.music)musicBus.gain.setTargetAtTime(v,ctx.currentTime,.1)},
+    setSfxVol(v){S.sv=v;save();if(ctx&&S.sfx)sfxBus.gain.setTargetAtTime(v,ctx.currentTime,.05)},
+    suspend(){if(ctx&&ctx.state==='running')ctx.suspend()},
+    resume(){if(ctx&&ctx.state==='suspended')ctx.resume()}
+  };
+  document.addEventListener('visibilitychange',()=>{document.hidden?api.suspend():api.resume()});
+  return api;
+})();
+
+/* =====================================================================
+   OUTLIVE — digital prototype: game engine (rules + AI)
+   Fan-made implementation of the published rules. No official art/text.
+   Numbers the rulebook leaves to the components (room stats, event costs,
+   leaders, equipment costs, map links) are original values chosen here.
+   ===================================================================== */
+
+/* ---------- data ---------- */
+const MATS=['wood','metal','chip'],SUPS=['meat','water','canned'],RES_ALL=[...MATS,...SUPS,'mun'];
+const RN={wood:'Wood',metal:'Metal',chip:'Microchips',meat:'Meat',water:'Water',canned:'Canned goods',mun:'Munitions'};
+const RI={wood:'🪵',metal:'🔩',chip:'💾',meat:'🍖',water:'💧',canned:'🥫',mun:'💥'};
+const COLORS=[{id:'purple',name:'Purple',hex:'#9b6bff'},{id:'orange',name:'Orange',hex:'#ff8f3a'},{id:'beige',name:'Sand',hex:'#e2d2a6'},{id:'blue',name:'Blue',hex:'#3fa2ff'}];
+const LOCS={
+  forest:{n:'Forest',x:15,y:14,k:'wild'},
+  dam:{n:'The Dam',x:50,y:15,k:'dam'},
+  mb:{n:'Military Base',x:85,y:13,k:'base'},
+  bc:{n:'Blackwood City',x:15,y:44,k:'city'},
+  sp:{n:'Silent Peak',x:85,y:44,k:'city'},
+  fair:{n:'Fairgrounds',x:15,y:80,k:'wild'},
+  cargo:{n:'Cargo Ship',x:50,y:73,k:'cargo'},
+  mine:{n:'The Mine',x:85,y:80,k:'wild'}
+};
+// The map's green arrows form one ring: Forest–Dam–Military Base–Silent Peak–Mine–Cargo Ship–Fairgrounds–Blackwood–Forest
+const RING=['forest','dam','mb','sp','mine','cargo','fair','bc'];
+const EDGES=RING.map((a,i)=>[a,RING[(i+1)%RING.length]]);
+const ADJ={};for(const k in LOCS)ADJ[k]=[];EDGES.forEach(([a,b])=>{ADJ[a].push(b);ADJ[b].push(a)});
+const LOC_RES={forest:'wood',mine:'metal',fair:'chip',dam:'water',mb:'mun'};
+const LOC_CAP={forest:{2:6,3:8,4:10},mine:{2:6,3:8,4:10},fair:{2:6,3:8,4:10},dam:{2:7,3:9,4:11},mb:{2:6,3:8,4:10}};
+const STACK_N={2:6,3:8,4:10};
+const CITIES=['bc','sp'];
+const CARGO_SPOTS=[{s:3,canned:1},{s:4,canned:2},{s:5,canned:3},{s:6,canned:4}];
+const RAD_DAY=[1,2,2,2,3,3];
+const ROOM_SCORE=[0,0,1,2,4,7,11,17];
+const AIR_ROW=4,AIR_ROWS=3,AIR_MAX=AIR_ROW*AIR_ROWS;
+const SEARCH_TILES=['water','canned','wood','metal','chip','mun','mun','algae','empty','empty'];
+
+const ROOMS={
+  command:{n:'Command Post',cap:3,up:1,std:1,pri:6,w:'Night · Events',t:'Once a turn: Overcome an Event for 2 fewer Materials/Munitions, or 1 fewer Supply.'},
+  workshop:{n:'Workshop',cap:3,up:0,std:1,pri:5,w:'Night · Repair',t:'Once a turn: repair a piece of Equipment for 1 fewer Material.'},
+  armory:{n:'Armory',cap:3,up:1,std:1,pri:4,w:'Night · Shelter',t:'Once a turn: take 4 Munitions.'},
+  foundry:{n:'Foundry',cap:3,up:1,pri:7,w:'Night · Build',t:'Once a turn: build a Room for 2 fewer Materials.'},
+  lodge:{n:'Hunting Lodge',cap:3,up:1,pri:6,w:'Day · Hunt',t:'Once a turn: +2 Meat after a successful Hunt.'},
+  depot:{n:'Freight Depot',cap:2,up:1,pri:7,w:'Day · Cargo',t:'Once a turn: +1 Canned Goods when you visit the Cargo Ship.'},
+  dock:{n:'Loading Dock',cap:3,up:1,pri:7,w:'Day · Cargo',t:'Once a turn: +2 Canned Goods at the Cargo Ship; its spaces are always available to you.'},
+  cistern:{n:'Cistern',cap:2,up:1,pri:8,w:'Permanent',t:'Your Shelter produces 1 Water each turn (not stored).'},
+  bunker:{n:'Blast Bunker',cap:4,up:2,pri:6,w:'Permanent',t:'Immune to Events that affect your Tribe (not Cave-in, Wildfire, Nomads, Lean Times, Thieves).'},
+  scrapper:{n:'Scrap Yard',cap:2,up:0,pri:2,w:'Night · Shelter',t:'Once a turn: destroy 1 of your Equipment and take its Materials.'},
+  scrubber:{n:'Scrubber',cap:3,up:1,pri:6,w:'Night · Radiation',t:'Once a turn: lower your Radioactivity by 1.'},
+  sealdoor:{n:'Seal Door',cap:2,up:0,pri:6,w:'Night · Radiation',t:'Your Airlock absorbs 1 extra Radiation point, even if empty.'},
+  barracks:{n:'Barracks',cap:4,up:1,pri:9,w:'Night · Shelter',t:'Once a turn: add 1 Survivor from the reserve to this Room (up to 8 in it).'},
+  scouts:{n:'Scout Post',cap:3,up:1,pri:5,w:'Day · City',t:'Once per City: after a Search, draw 2 more Search tiles for free.'},
+  lab:{n:'Salvage Lab',cap:3,up:1,pri:5,w:'Night · Shelter',t:'Once a turn: draw 2 Equipment tiles (broken).'},
+  cache:{n:'Supply Cache',cap:2,up:0,pri:4,w:'Night · Shelter',t:'Once a turn: draw 1 Equipment tile (broken).'},
+  intel:{n:'Intel Office',cap:2,up:0,pri:2,w:'Day · City',t:'Once a turn: look through one City Search pile.'},
+  guard:{n:'Guard Post',cap:2,up:0,pri:4,w:'Day · Pressure',t:'Once a turn: one of your Strength-3 Heroes ignores one Pressure.'},
+  mechanic:{n:'Mechanic Bay',cap:3,up:1,pri:5,w:'Night · Repair',t:'Once a turn: repair 1 Equipment for free.'},
+  snares:{n:'Snare Line',cap:2,up:0,pri:4,w:'Day · Hunt',t:'Once a turn: +1 Meat after a successful Hunt.'},
+  enforcer:{n:'Enforcer Hall',cap:2,up:0,pri:4,w:'Day · Pressure',t:'When you Pressure a Hero, you choose the tribute (not Munitions).'},
+  forager:{n:'Forager Den',cap:2,up:0,pri:4,w:'Day · City',t:'Once per City: an Empty Cupboard gives +1 Wood and +1 Metal.'},
+  rebuild:{n:'Rebuild Shop',cap:3,up:1,pri:6,w:'Night · Repair',t:'Once a turn: repair Equipment for 2 fewer Materials.'}
+};
+const STD_ROOMS=['command','workshop','armory'];
+const ADV_ROOMS=Object.keys(ROOMS).filter(k=>!ROOMS[k].std);
+
+// sym: matching-pair symbol id, side L/R.
+const EQ={
+  axe:{n:'Axe',cost:{wood:2,metal:1},sym:0,side:'L',t:'Forest: +2 Wood when you scavenge Wood.'},
+  chainsaw:{n:'Chainsaw',cost:{wood:1,metal:2},sym:0,side:'R',t:'City: take 2 Wood when you visit.'},
+  bow:{n:'Bow',cost:{wood:2,chip:1},sym:1,side:'L',t:'Forest: take 1 Meat when you visit.'},
+  shotgun:{n:'Shotgun',cost:{metal:2,wood:1},sym:1,side:'R',t:'Hunting: +1 Strength.'},
+  jerrycan:{n:'Jerrycan',cost:{metal:2,chip:1},sym:2,side:'L',t:'Dam: +1 Water when you scavenge Water.'},
+  purifier:{n:'Purifier',cost:{chip:2,metal:1},sym:2,side:'R',t:'Mine: take 1 Water when you visit.'},
+  card:{n:'Access Card',cost:{chip:2,wood:1},sym:3,side:'L',t:'Dam: open the filtration for free.'},
+  crowbar:{n:'Crowbar',cost:{metal:2,wood:1},sym:3,side:'R',t:'Military Base: take 2 Microchips when you visit.'},
+  ammobox:{n:'Ammo Box',cost:{metal:1,wood:1,chip:1},sym:4,side:'L',t:'Military Base: +2 Munitions when you scavenge Munitions.'},
+  gear:{n:'Battle Gear',cost:{metal:2,chip:1},sym:4,side:'R',t:'Pressure suffered: -2.'},
+  pickaxe:{n:'Pickaxe',cost:{wood:2,metal:1},sym:5,side:'L',t:'Mine: +2 Metal when you scavenge Metal.'},
+  hacksaw:{n:'Hacksaw',cost:{metal:2,chip:1},sym:5,side:'R',t:'Cargo Ship: take 2 Metal when you visit.'},
+  flashlight:{n:'Flashlight',cost:{chip:2,wood:1},sym:6,side:'L',t:'City: take 1 Survivor when you visit.'},
+  thermal:{n:'Thermal Sensor',cost:{chip:2,metal:1},sym:6,side:'R',t:'Hunting: look through the Wild Game and choose your prey.'},
+  backpack:{n:'Backpack',cost:{wood:1,chip:2},sym:7,side:'L',t:'Fairgrounds: +2 Microchips when you scavenge Microchips.'},
+  detector:{n:'Metal Detector',cost:{metal:1,chip:1,wood:1},sym:7,side:'R',t:'Fairgrounds: take 1 Canned Goods when you visit.'},
+  hook:{n:'Grappling Hook',cost:{metal:2,wood:1},sym:8,side:'L',t:'Cargo Ship: +1 Strength to reach a higher spot (only way onto spot 6).'},
+  exo:{n:'Exoskeleton',cost:{metal:1,chip:2},sym:8,side:'R',t:'Move one Hero as far as you wish.'},
+  trap:{n:'Bear Trap',cost:{wood:1,metal:2},sym:9,side:'L',t:'Hunting: +1 Strength.'},
+  bat:{n:'Baseball Bat',cost:{wood:2,metal:1},sym:9,side:'R',t:'Pressure applied: +1.'}
+};
+const SYMS=['◆','●','▲','■','★','✚','⬟','⬢','♦','♥'];
+const SYM_COL=['#e8c34a','#e0674a','#4ac7e8','#8fe86a','#e84ad0','#ffffff','#e89a4a','#6a8fe8','#4ae8b0','#c9a0ff'];
+
+const EVENTS={
+  wildfire:{n:'Wildfire',sp:3,cost:{water:3},t:'Each day: remove Wood from the Forest.'},
+  cavein:{n:'Cave-in',sp:3,cost:{wood:2,metal:1},t:'Each day: remove Metal from the Mine.'},
+  thieves:{n:'Thieves',sp:3,cost:{mun:3},t:'Each day: remove Microchips from the Fairgrounds.'},
+  sandstorm:{n:'Sandstorm',sp:4,cost:{water:2,mun:2},t:'All Heroes act with Strength 3 (Pressure unchanged).'},
+  lean:{n:'Lean Times',sp:4,cost:{meat:2,canned:2},t:'Each day: remove Wood, Metal and Microchips from the wilds.'},
+  cloud:{n:'Radioactive Cloud',sp:4,cost:{water:2,metal:2},t:'Each day: every Shelter takes 2 more Radiation.'},
+  rats:{n:'Rat Infestation',sp:3,cost:{mun:3},t:'Each day: every Shelter loses 1 Supply (or 1 Survivor).'},
+  clan:{n:'Enemy Clan',sp:5,cost:{mun:4,wood:1},t:'Each day: every Shelter loses 2 Materials/Munitions (or 1 Survivor).'},
+  cold:{n:'Cold Snap',sp:3,cost:{wood:3},t:'Each day: every Shelter loses 1 Survivor.'},
+  nomads:{n:'Nomads',sp:3,cost:{canned:2,mun:1},t:'Each day: Search tiles are removed from each City.'},
+  epi:{n:'Epizootic Disease',sp:3,cost:{meat:2,water:1},t:'Wild Game yields 1 less Meat.'},
+  mutation:{n:'Animal Mutation',sp:4,cost:{meat:2,mun:2},t:'Wild Game has +1 Endurance.'}
+};
+const TRIBE_EVENTS=['sandstorm','cloud','rats','clan','cold','epi','mutation'];
+
+const LEADERS=[
+  {id:'crane',n:'Odessa Crane',age:64,locs:['forest','dam','mb','bc'],res:{canned:2,mun:1},eq:'jerrycan'},
+  {id:'wren',n:'Tobias Wren',age:59,locs:['mine','cargo','fair','sp'],res:{wood:1,metal:1,chip:1},eq:'pickaxe'},
+  {id:'okafor',n:'Imani Okafor',age:57,locs:['bc','sp','mb','forest'],res:{water:2,mun:1},eq:'flashlight'},
+  {id:'sokolov',n:'Dmitri Sokolov',age:55,locs:['mine','forest','dam','cargo'],res:{metal:2,mun:1},eq:'bat'},
+  {id:'marin',n:'Lucía Marín',age:52,locs:['fair','mb','bc','cargo'],res:{chip:2,canned:1},eq:'card'},
+  {id:'tanabe',n:'Hiro Tanabe',age:49,locs:['sp','dam','mine','bc'],res:{wood:2,water:1},eq:'axe'},
+  {id:'lindqvist',n:'Greta Lindqvist',age:46,locs:['cargo','mb','forest','sp'],res:{meat:2,mun:1},eq:'bow'},
+  {id:'mensah',n:'Kofi Mensah',age:44,locs:['fair','mine','dam','mb'],res:{mun:3},eq:'ammobox'},
+  {id:'raman',n:'Priya Raman',age:41,locs:['bc','forest','fair','cargo'],res:{chip:1,wood:1,canned:1},eq:'backpack'},
+  {id:'hart',n:'Silas Hart',age:38,locs:['sp','mb','mine','dam'],res:{metal:1,water:1,canned:1},eq:'hacksaw'}
+];
+
+/* ---------- rng / helpers ---------- */
+let _s=(Date.now()&0xffffffff)>>>0;
+function seedRng(s){_s=s>>>0}
+function rand(){_s=(_s+0x6D2B79F5)>>>0;let t=_s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const pickOne=a=>a[Math.floor(rand()*a.length)];
+const sumObj=o=>Object.values(o).reduce((a,b)=>a+b,0);
+const tot=(p,l)=>l.reduce((a,r)=>a+p.res[r],0);
+const nSup=p=>tot(p,SUPS),nMat=p=>tot(p,MATS);
+const survivors=p=>p.air+p.rooms.reduce((a,r)=>a+r.pop,0);
+const isFull=r=>r.built&&r.pop>=ROOMS[r.k].cap;
+const activeRooms=(p,k)=>p.rooms.filter(r=>r.k===k&&isFull(r));
+const hasRoom=(p,k)=>activeRooms(p,k).length>0;
+const canUse=(p,k)=>activeRooms(p,k).some(r=>!r.used);
+function useRoom(p,k){const r=activeRooms(p,k).find(r=>!r.used);if(r){r.used=true;return true}return false}
+const eqReady=(p,id)=>p.equip.find(e=>e.id===id&&e.fixed&&!e.used);
+function useEq(p,id){const e=eqReady(p,id);if(e){e.used=true;return true}return false}
+const costStr=c=>Object.entries(c).filter(([,v])=>v>0).map(([r,v])=>v+RI[r]).join(' ')||'free';
+const canPay=(p,c)=>Object.entries(c).every(([r,v])=>p.res[r]>=v);
+const short=(p,c)=>Object.entries(c).reduce((a,[r,v])=>a+Math.max(0,v-p.res[r]),0);
+
+let G=null;
+function log(msg,cls){if(!G)return;G.log.push({msg,cls,day:G.day});if(typeof UI!=='undefined'&&UI.log)UI.log(msg,cls)}
+const order=()=>Array.from({length:G.n},(_,i)=>G.players[(G.first+i)%G.n]);
+const pname=p=>p.name;
+const U=()=>(typeof UI!=='undefined'?UI:null);
+async function sleep(ms){const u=U();if(u&&u.sleep)await u.sleep(ms)}
+function render(){const u=U();if(u&&u.render)u.render()}
+async function fx(name,...a){const u=U();if(u&&u[name])return u[name](...a)}
+function pop(target,text,kind){const u=U();if(u&&u.pop)u.pop(target,text,kind)}
+const P_=p=>({p:p.id});const L_=l=>({loc:l});
+
+/* ---------- game creation ---------- */
+function makeGame(cfg){
+  const n=cfg.players.length;
+  G={n,day:0,phase:'setup',players:[],first:0,nextFirst:0,events:[],active:[],loc:{},algae:true,
+     equipDeck:[],equipDisc:[],log:[],fx:{},cargoClaimed:false,over:false,humans:cfg.players.filter(x=>x.human).length,lastActor:-1,result:null};
+  cfg.players.forEach((c,i)=>G.players.push({
+    id:i,name:c.name||('Player '+(i+1)),human:!!c.human,color:COLORS[i],
+    res:{wood:0,metal:0,chip:0,meat:0,water:0,canned:0,mun:0},
+    heroes:[5,4,3,3].map(s=>({str:s,loc:null,state:'idle',spot:null,ap:0,hunted:false,unlocked:false})),
+    rooms:[],air:0,rad:0,equip:[],events:[],caught:{},leader:null,cityBonus:{},report:[]}));
+  G.events=shuffle(Object.keys(EVENTS)).slice(0,6);
+  let deck=[];Object.keys(EQ).forEach(k=>{deck.push(k,k)});G.equipDeck=shuffle(deck);
+  for(const k of Object.keys(LOC_RES))G.loc[k]={amt:0,game:[]};
+  const game=[];for(let e=3;e<=7;e++)for(let i=0;i<6;i++)game.push({end:e});
+  const gs=shuffle(game);let ix=0;
+  for(const k of ['forest','mine','fair']){G.loc[k].game=gs.slice(ix,ix+STACK_N[n]);ix+=STACK_N[n]}
+  for(const c of CITIES)G.loc[c]={search:[],disc:[],equip:[]};
+  G.loc.cargo={};
+  return G;
+}
+
+function drawEquipTile(){
+  if(!G.equipDeck.length){G.equipDeck=shuffle(G.equipDisc);G.equipDisc=[]}
+  return G.equipDeck.length?G.equipDeck.pop():null;
+}
+function drawEquipFor(p){
+  for(let i=0;i<60;i++){
+    const t=drawEquipTile();if(!t)return null;
+    if(p.equip.some(e=>e.id===t)){G.equipDisc.push(t);continue}
+    p.equip.push({id:t,fixed:false,used:false});log(`${pname(p)} draws ${EQ[t].n} (broken).`);return t;
+  }
+  return null;
+}
+
+/* ---------- setup ---------- */
+async function handoff(p){
+  if(G.humans>1&&p.human&&G.lastActor!==p.id){G.lastActor=p.id;const u=U();if(u&&u.handoff)await u.handoff(p)}
+}
+async function setupGame(){
+  const u=U();
+  const leaders=shuffle(LEADERS);
+  let roomDeck=[];ADV_ROOMS.forEach(k=>{roomDeck.push(k,k)});roomDeck=shuffle(roomDeck);
+  for(const p of G.players){
+    const L2=[leaders.pop(),leaders.pop()];
+    const six=[];while(six.length<6)six.push(roomDeck.pop());
+    let leader,four;
+    if(p.human){
+      await handoff(p);
+      const id=await u.chooseOne(`${p.name}: choose your Leader`,L2.map(l=>({id:l.id,label:`${l.n} (age ${l.age})`,sub:`Start: ${l.locs.map(x=>LOCS[x].n).join(', ')} · ${costStr(l.res)} · ${EQ[l.eq].n} (broken)`})),'Your Leader sets your starting locations, resources and equipment. The oldest Leader goes first.');
+      leader=L2.find(l=>l.id===id);
+      const sel=await u.chooseMany(`${p.name}: keep 4 of these 6 Advanced Rooms`,six.map((k,i)=>({id:String(i),label:ROOMS[k].n,sub:`${ROOMS[k].w} · ${ROOMS[k].cap} spaces · upkeep ${ROOMS[k].up} · ${ROOMS[k].t}`})),4);
+      four=sel.map(i=>six[+i]);
+    }else{
+      leader=pickOne(L2);
+      four=six.slice().sort((a,b)=>ROOMS[b].pri-ROOMS[a].pri||rand()-.5).slice(0,4);
+    }
+    p.leader=leader;
+    p.rooms=[...STD_ROOMS,...four].map(k=>({k,built:false,pop:0,used:false}));
+    // free room
+    let ri;
+    if(p.human){
+      const id=await u.chooseOne(`${p.name}: build one Room for free`,p.rooms.map((r,i)=>({id:String(i),label:ROOMS[r.k].n,sub:`${ROOMS[r.k].w} · ${ROOMS[r.k].cap} spaces · upkeep ${ROOMS[r.k].up} · ${ROOMS[r.k].t}`})),'You start with 4 Survivors. A Room only works when every space is filled.');
+      ri=+id;
+    }else{
+      ri=p.rooms.map((r,i)=>({i,s:ROOMS[r.k].pri-(ROOMS[r.k].cap>3?3:0)+rand()})).sort((a,b)=>b.s-a.s)[0].i;
+    }
+    p.rooms[ri].built=true;
+    const cap=ROOMS[p.rooms[ri].k].cap;
+    let inRoom=Math.min(cap,4);
+    if(p.human&&inRoom>0){
+      inRoom=await u.amount({title:'Starting Survivors',text:`You have 4 Survivors. How many go in ${ROOMS[p.rooms[ri].k].n} (${cap} spaces)? The rest wait in the Airlock.`,min:0,max:Math.min(cap,4),def:Math.min(cap,4)});
+    }
+    p.rooms[ri].pop=inRoom;p.air=4-inRoom;
+    for(const r in leader.res)p.res[r]+=leader.res[r];
+    p.equip.push({id:leader.eq,fixed:false,used:false});
+  }
+  // first player: oldest leader
+  G.first=G.players.slice().sort((a,b)=>b.leader.age-a.leader.age)[0].id;G.nextFirst=G.first;
+  log(`${G.players[G.first].name} has the oldest Leader and starts as First Player.`);
+  // hero placement in turn order
+  for(const p of order()){
+    const free=p.leader.locs.slice();
+    for(const h of p.heroes){
+      let loc;
+      if(p.human){
+        await handoff(p);
+        loc=await u.pickLocation(p,free,`${p.name}: place your Strength ${h.str} Hero on one of the highlighted Locations`);
+      }else{
+        const pref=free.slice().sort((a,b)=>(b==='cargo'&&h.str>=4?3:0)-(a==='cargo'&&h.str>=4?3:0)+(rand()-.5));
+        loc=pref[0];
+      }
+      h.loc=loc;free.splice(free.indexOf(loc),1);render();
+    }
+  }
+}
+
+/* ---------- dawn ---------- */
+function dawn(){
+  G.phase='dawn';G.cargoClaimed=false;G.fx={sandstorm:false,epi:false,mut:false};G.algae=true;
+  for(const k of Object.keys(LOC_RES))G.loc[k].amt=LOC_CAP[k][G.n];
+  for(const c of CITIES){
+    const s=G.loc[c];
+    const t=shuffle(SEARCH_TILES),keep=STACK_N[G.n];
+    s.search=t.slice(0,keep);s.disc=t.slice(keep);
+    G.equipDisc.push(...s.equip);s.equip=[];
+    for(let i=0;i<3;i++){const e=drawEquipTile();if(e)s.equip.push(e)}
+  }
+  for(const p of G.players){p.cityBonus={};p.equip.forEach(e=>e.used=false);p.rooms.forEach(r=>r.used=false);p.report=[];
+    p.heroes.forEach(h=>{h.state='idle';h.spot=null;h.ap=0})}
+  log(`— Day ${G.day} · Dawn: the wastelands are replenished.`,'phase');
+}
+
+/* ---------- survivors / radiation ---------- */
+function removeFrom(p,where){if(where==='air')p.air--;else p.rooms[where].pop--}
+async function chooseRemoval(p){
+  const opts=[];
+  if(p.air>0)opts.push({id:'air',label:`Airlock (${p.air})`});
+  p.rooms.forEach((r,i)=>{if(r.pop>0)opts.push({id:String(i),label:`${ROOMS[r.k].n} (${r.pop}/${ROOMS[r.k].cap})`+(isFull(r)?' — ability active':'')})});
+  if(!opts.length)return null;
+  if(opts.length===1)return opts[0].id;
+  if(p.human)return await U().chooseOne(`${p.name}: lose a Survivor — from where?`,opts);
+  if(p.air>0)return 'air';
+  const rs=p.rooms.map((r,i)=>({r,i})).filter(x=>x.r.pop>0).sort((a,b)=>(isFull(a.r)-isFull(b.r))||(ROOMS[a.r.k].pri-ROOMS[b.r.k].pri));
+  return String(rs[0].i);
+}
+async function loseSurvivors(p,n,why){
+  let lost=0;
+  for(let i=0;i<n;i++){
+    const w=await chooseRemoval(p);if(w===null)break;
+    removeFrom(p,w==='air'?'air':+w);lost++;
+  }
+  if(lost){pop(P_(p),`-${lost}👤`,'surv-');log(`${pname(p)} loses ${lost} Survivor${lost>1?'s':''}${why?' ('+why+')':''}.`,'bad');p.report.push(`Lost ${lost} Survivor${lost>1?'s':''}${why?' — '+why:''}.`)}
+  return lost;
+}
+async function addRad(p,n,why){
+  if(n<=0)return;
+  const t=p.rad-n;
+  if(t<-11){const extra=-11-t;p.rad=-11;await loseSurvivors(p,extra,'radiation overflow')}else p.rad=t;
+}
+function lowerRad(p,n){p.rad=Math.min(3,p.rad+n)}
+async function addSurvivor(p,why){
+  const opts=[];
+  if(p.air<AIR_MAX)opts.push({id:'air',label:'Airlock'});
+  p.rooms.forEach((r,i)=>{if(r.built&&r.pop<ROOMS[r.k].cap)opts.push({id:String(i),label:`${ROOMS[r.k].n} (${r.pop}/${ROOMS[r.k].cap})`})});
+  if(!opts.length){log(`${pname(p)} has no room for a new Survivor.`);return false}
+  let w;
+  if(opts.length===1)w=opts[0].id;
+  else if(p.human)w=await U().chooseOne(`${p.name}: place the new Survivor`,opts);
+  else{
+    const near=p.rooms.map((r,i)=>({r,i})).filter(x=>x.r.built&&x.r.pop===ROOMS[x.r.k].cap-1);
+    w=near.length?String(near[0].i):(p.air<AIR_MAX?'air':opts[0].id);
+  }
+  if(w==='air')p.air++;else p.rooms[+w].pop++;
+  log(`${pname(p)} gains a Survivor.`);pop(P_(p),'+1👤','surv');
+  return true;
+}
+
+/* ---------- movement ---------- */
+function effStr(p,h){return(G.fx.sandstorm&&!hasRoom(p,'bunker'))?Math.min(3,h.str):h.str}
+function cargoOptions(p,h){
+  const s=effStr(p,h),hook=!!eqReady(p,'hook'),dock=canUse(p,'dock'),out=[];
+  CARGO_SPOTS.forEach((sp,i)=>{
+    const needHook=sp.s===s+1;
+    if(!(sp.s===s||(hook&&needHook)))return;
+    const occ=G.players.some(q=>q.heroes.some(x=>x.loc==='cargo'&&x.state==='act'&&x.spot===i));
+    if(occ&&!(dock&&sp.s===s))return;
+    out.push({i,hook:needHook,occ});
+  });
+  return out;
+}
+function destinations(p,h){
+  const exo=!!eqReady(p,'exo'),maxD=exo?9:2;
+  const dist={[h.loc]:0},q=[h.loc];
+  while(q.length){const u=q.shift();if(dist[u]>=maxD)continue;for(const v of ADJ[u])if(!(v in dist)){dist[v]=dist[u]+1;q.push(v)}}
+  const out=[];
+  for(const loc in dist){
+    if(loc===h.loc)continue;
+    if(p.heroes.some(o=>o!==h&&o.loc===loc))continue;
+    if(loc==='cargo'&&cargoOptions(p,h).length===0)continue;
+    out.push({loc,dist:dist[loc],exo:dist[loc]>2});
+  }
+  return out;
+}
+
+/* ---------- day ---------- */
+async function dayPhase(){
+  G.phase='day';
+  const evId=G.events[G.day-1];G.active.push(evId);
+  log(`Convoy Event revealed: ${EVENTS[evId].n}.`,'event');
+  const u=U();if(G.humans>0&&u&&u.showEvent)await u.showEvent(evId);
+  await applyEvents();
+  render();
+  for(let round=0;round<4;round++)for(const p of order())await heroTurn(p);
+  for(const p of G.players)for(const h of p.heroes){h.state='idle';h.spot=null;h.ap=0}
+  G.first=G.nextFirst;
+  render();
+}
+function removeLoc(k,n){const l=G.loc[k];const r=Math.min(n,l.amt);l.amt-=r;if(r)log(`${LOCS[k].n} loses ${r} ${RN[LOC_RES[k]]}.`,'event')}
+async function chooseSupplyToLose(p,pool,title){
+  if(pool.length===1)return pool[0];
+  if(p.human)return await U().chooseOne(title,pool.map(r=>({id:r,label:`${RI[r]} ${RN[r]} (${p.res[r]})`})));
+  return pool.slice().sort((a,b)=>resValue(p,a)-resValue(p,b))[0];
+}
+async function applyEvents(){
+  for(const id of G.active.slice()){
+    switch(id){
+      case'wildfire':removeLoc('forest',G.n);break;
+      case'cavein':removeLoc('mine',G.n);break;
+      case'thieves':removeLoc('fair',G.n);break;
+      case'lean':['forest','mine','fair'].forEach(k=>removeLoc(k,G.n-1));break;
+      case'nomads':for(const c of CITIES){const s=G.loc[c];const k=Math.min(G.n,s.search.length);for(let i=0;i<k;i++)s.disc.push(s.search.pop())}log('Nomads strip the Cities of Search tiles.','event');break;
+      case'sandstorm':G.fx.sandstorm=true;break;
+      case'epi':G.fx.epi=true;break;
+      case'mutation':G.fx.mut=true;break;
+      case'cloud':for(const p of order()){if(hasRoom(p,'bunker')){log(`${pname(p)}'s bunker shrugs off the cloud.`);continue}await addRad(p,2,'cloud');pop(P_(p),'☢ +2','rad')}log('The Radioactive Cloud passes over every Shelter.','event');break;
+      case'rats':for(const p of order()){
+        if(hasRoom(p,'bunker'))continue;
+        const pool=SUPS.filter(r=>p.res[r]>0);
+        if(pool.length){const r=await chooseSupplyToLose(p,pool,`${p.name}: rats! Lose 1 Supply`);p.res[r]--;log(`Rats eat ${pname(p)}'s ${RN[r]}.`,'event');pop(P_(p),`-1${RI[r]}`,'loss');p.report.push(`Rats ate 1 ${RN[r]}.`)}
+        else await loseSurvivors(p,1,'rats');
+      }break;
+      case'clan':for(const p of order()){
+        if(hasRoom(p,'bunker'))continue;
+        const pool=()=>[...MATS,'mun'].filter(r=>p.res[r]>0);
+        if(tot(p,[...MATS,'mun'])>=2){for(let i=0;i<2;i++){const r=await chooseSupplyToLose(p,pool(),`${p.name}: Enemy Clan raid! Lose a Material/Munition (${i+1}/2)`);p.res[r]--}log(`The Enemy Clan raids ${pname(p)} (-2 tokens).`,'event');pop(P_(p),'-2 raided','loss');p.report.push('Enemy Clan raided 2 tokens.')}
+        else await loseSurvivors(p,1,'Enemy Clan');
+      }break;
+      case'cold':for(const p of order()){if(hasRoom(p,'bunker'))continue;await loseSurvivors(p,1,'Cold Snap')}break;
+    }
+  }
+}
+async function heroTurn(p){
+  const idle=p.heroes.map((h,hi)=>({hi,h,dests:h.state==='idle'?destinations(p,h):[]})).filter(o=>o.h.state==='idle');
+  if(!idle.length)return;
+  await fx('turn',p,'day');
+  const mv=idle.filter(o=>o.dests.length);
+  if(!mv.length){idle[0].h.state='act';log(`${pname(p)}'s Hero is stuck and stays put.`);return}
+  let ch;
+  if(p.human){await handoff(p);ch=await U().pickMove(p,mv.map(o=>({hi:o.hi,str:o.h.str,from:o.h.loc,dests:o.dests})))}
+  else ch=aiChooseMove(p);
+  const h=p.heroes[ch.hi];
+  const d=destinations(p,h).find(x=>x.loc===ch.loc);
+  if(d&&d.exo)useEq(p,'exo');
+  await arrive(p,h,ch.loc);
+  if(!p.human)await sleep(260);
+  await fx('turnEnd',p,'day');
+}
+async function arrive(p,h,loc){
+  const from=h.loc;
+  log(`${pname(p)} moves a Strength ${h.str} Hero: ${LOCS[from].n} → ${LOCS[loc].n}.`);
+  await fx('move',p,h,from,loc);
+  h.loc=loc;h.state='act';h.spot=null;h.hunted=false;h.unlocked=false;
+  if(loc==='cargo'){
+    const opts=cargoOptions(p,h);let o=opts[0];
+    if(opts.length>1){
+      if(p.human){const id=await U().chooseOne(`${p.name}: pick a Cargo Ship spot`,opts.map(x=>({id:String(x.i),label:`Spot ${CARGO_SPOTS[x.i].s}: ${CARGO_SPOTS[x.i].canned}🥫 + 1 Survivor`+(x.hook?' (Grappling Hook)':'')+(x.occ?' (occupied — Loading Dock)':'')})));o=opts.find(x=>String(x.i)===id)}
+      else o=opts.slice().sort((a,b)=>CARGO_SPOTS[b.i].s-CARGO_SPOTS[a.i].s)[0];
+    }
+    h.spot=o.i;
+    if(o.hook)useEq(p,'hook');
+    if(!G.cargoClaimed){G.cargoClaimed=true;G.nextFirst=p.id;log(`${pname(p)} takes the First Player token for the coming night.`,'good');pop(L_('cargo'),'1st player','good')}
+  }
+  render();
+  await sleep(380);
+  await applyPressure(p,h);
+  await visitEffects(p,h);
+  await actionPhase(p,h);
+  render();
+}
+async function applyPressure(p,h){
+  const targets=[];
+  for(const q of order())if(q!==p)for(const d of q.heroes)if(d.loc===h.loc&&d.state==='act'&&d.str<h.str)targets.push({q,d});
+  for(const{q,d}of targets){
+    let pts=h.str-d.str;
+    await fx('pressure',p,q,h.loc,pts);
+    if(eqReady(p,'bat')){useEq(p,'bat');pts++}
+    if(pts>0&&eqReady(q,'gear')){useEq(q,'gear');pts=Math.max(0,pts-2);log(`${pname(q)}'s Battle Gear absorbs 2 Pressure.`)}
+    if(pts>0&&d.str===3&&canUse(q,'guard')){useRoom(q,'guard');pts=0;log(`${pname(q)}'s Guard Post turns the Pressure aside.`)}
+    if(pts>0&&q.res.mun>0){
+      let m=0;
+      if(q.human)m=await U().amount({title:`${q.name}: Pressure!`,text:`${p.name}'s Strength ${h.str} Hero presses your Strength ${d.str} Hero for ${pts} tribute. Spend Munitions to reduce it by 1 each?`,min:0,max:Math.min(pts,q.res.mun),def:Math.min(pts,q.res.mun)});
+      else m=Math.min(pts,q.res.mun);
+      if(m){q.res.mun-=m;pts-=m;log(`${pname(q)} spends ${m}${RI.mun} to resist Pressure.`);pop(L_(h.loc),`-${m}${RI.mun}`,'loss')}
+    }
+    const taken=[];
+    for(let i=0;i<pts;i++){
+      const pool=RES_ALL.filter(r=>r!=='mun'&&q.res[r]>0);
+      if(!pool.length)break;
+      let r;
+      if(hasRoom(p,'enforcer')){
+        if(p.human)r=await U().chooseOne(`${p.name}: choose your tribute from ${q.name}`,pool.map(x=>({id:x,label:`${RI[x]} ${RN[x]} (${q.res[x]})`})));
+        else r=pool.slice().sort((a,b)=>resValue(p,b)-resValue(p,a))[0];
+      }else{
+        if(q.human)r=await U().chooseOne(`${q.name}: pay tribute to ${p.name}`,pool.map(x=>({id:x,label:`${RI[x]} ${RN[x]} (${q.res[x]})`})),'Give 1 Supply or 1 Material.');
+        else r=pool.slice().sort((a,b)=>resValue(q,a)-resValue(q,b))[0];
+      }
+      q.res[r]--;p.res[r]++;taken.push(r);
+    }
+    if(taken.length){log(`${pname(p)} pressures ${pname(q)} and takes ${taken.map(r=>RI[r]).join('')}.`,'bad');pop(L_(h.loc),`${pname(q)} → ${pname(p)}: ${taken.map(r=>RI[r]).join('')}`,'hit')}
+    else log(`${pname(p)} pressures ${pname(q)} — nothing gained.`);
+    render();
+    await sleep(450);
+  }
+}
+async function visitEffects(p,h){
+  const L=h.loc;
+  const table={forest:['bow','meat',1],mine:['purifier','water',1],fair:['detector','canned',1],mb:['crowbar','chip',2],cargo:['hacksaw','metal',2]};
+  const t=table[L];
+  if(t&&useEq(p,t[0])){p.res[t[1]]+=t[2];log(`${pname(p)}'s ${EQ[t[0]].n} yields ${t[2]}${RI[t[1]]}.`);pop(L_(L),`${EQ[t[0]].n} +${t[2]}${RI[t[1]]}`,'gain')}
+  if(CITIES.includes(L)){
+    if(useEq(p,'chainsaw')){p.res.wood+=2;log(`${pname(p)}'s Chainsaw yields 2${RI.wood}.`)}
+    if(useEq(p,'flashlight')){await addSurvivor(p,'flashlight')}
+  }
+  if(L==='cargo'){
+    const sp=CARGO_SPOTS[h.spot];
+    p.res.canned+=sp.canned;log(`${pname(p)} loads ${sp.canned}${RI.canned} at the Cargo Ship.`);pop(L_('cargo'),`+${sp.canned}${RI.canned} +1👤`,'gain');
+    if(canUse(p,'depot')){useRoom(p,'depot');p.res.canned++;log('Freight Depot: +1🥫.')}
+    if(canUse(p,'dock')){useRoom(p,'dock');p.res.canned+=2;log('Loading Dock: +2🥫.')}
+    await addSurvivor(p,'cargo');
+  }
+}
+
+/* ---------- day actions ---------- */
+function resValue(p,r){
+  const s=p.res[r];
+  // supplies are worth more while the Tribe cannot yet cover tonight's upkeep and recruiting
+  const need=(()=>{const n=supplyNeeds(p);return n.rows+n.rooms+3})();
+  const sup=nSup(p),boost=sup<need?1+(need-sup)/need:1;
+  switch(r){
+    case'canned':return 1.5*boost*(s>10?.5:1);
+    case'meat':return 1.2*boost*(s>8?.5:1);
+    case'water':return 1.1*boost*(s>6?.5:1);
+    case'mun':return s>=5?.25:s>=3?.5:.85;
+    case'chip':return s===0?2.2:(s>=8?.5:s>=5?.8:1.1);
+    default:return s>=8?.5:s>=5?.8:1.1;
+  }
+}
+function huntInfo(p,h){
+  const loc=G.loc[h.loc];
+  if(!loc.game||!loc.game.length||h.hunted)return null;
+  const mut=G.fx.mut&&!hasRoom(p,'bunker')?1:0,epi=G.fx.epi&&!hasRoom(p,'bunker')?1:0;
+  const gear=['shotgun','trap'].filter(id=>eqReady(p,id)).length;
+  const tiles=eqReady(p,'thermal')?loc.game.map((t,i)=>i):[0];
+  let best=null;
+  for(const i of tiles){
+    const t=loc.game[i];const end=t.end+mut;
+    const yld=Math.max(0,(t.end-2)+(p.caught[t.end]||0)-epi);
+    const m=Math.min(p.res.mun,end);
+    const need=Math.max(0,end-m-gear);
+    const ok=need<=h.ap;
+    const bonus=(canUse(p,'lodge')?2:0)+(canUse(p,'snares')?1:0);
+    const info={i,end,yld,bonus,minNeed:need,ok,gear};
+    if(ok&&(!best||(info.yld+info.bonus)>(best.yld+best.bonus)))best=info;
+    if(!best&&i===tiles[0])best=info;
+  }
+  return best;
+}
+async function doHunt(p,h,idx,m){
+  const loc=G.loc[h.loc];const t=loc.game[idx];
+  const mut=G.fx.mut&&!hasRoom(p,'bunker')?1:0,epi=G.fx.epi&&!hasRoom(p,'bunker')?1:0;
+  const end=t.end+mut;m=Math.min(m,p.res.mun,end);
+  let need=end-m;
+  let gearUsed=0;
+  for(const id of['shotgun','trap'])if(need>h.ap&&eqReady(p,id)||(need>0&&eqReady(p,id)&&need>0)){if(need>0&&useEq(p,id)){need--;gearUsed++}}
+  need=Math.max(0,need);
+  if(need>h.ap)return false;
+  if(idx>0&&!useEq(p,'thermal'))return false;
+  if(idx===0&&eqReady(p,'thermal')&&loc.game.length>1&&false){}
+  h.ap-=need;p.res.mun-=m;
+  loc.game.splice(idx,1);
+  const yld=Math.max(0,(t.end-2)+(p.caught[t.end]||0)-epi);
+  p.caught[t.end]=(p.caught[t.end]||0)+1;
+  let gain=yld;
+  if(useRoom(p,'lodge'))gain+=2;
+  if(useRoom(p,'snares'))gain+=1;
+  p.res.meat+=gain;h.hunted=true;
+  log(`${pname(p)} hunts an Endurance-${t.end} beast (${need} AP${m?`, ${m}${RI.mun}`:''}) and gets ${gain}${RI.meat}.`,'good');
+  pop(L_(h.loc),`+${gain}${RI.meat}`,'hunt');
+  return true;
+}
+async function doScav(p,h,n){
+  const res=LOC_RES[h.loc],loc=G.loc[h.loc];
+  n=Math.min(n,h.ap,loc.amt);if(n<=0)return;
+  h.ap-=n;loc.amt-=n;p.res[res]+=n;
+  const bon={forest:['axe',2],mine:['pickaxe',2],fair:['backpack',2],dam:['jerrycan',1],mb:['ammobox',2]}[h.loc];
+  let extra=0;
+  if(bon&&eqReady(p,bon[0])){const x=Math.min(bon[1],loc.amt);if(x>0){useEq(p,bon[0]);loc.amt-=x;p.res[res]+=x;extra=x}}
+  log(`${pname(p)} gathers ${n+extra}${RI[res]} at ${LOCS[h.loc].n}${extra?` (${EQ[bon[0]].n} +${extra})`:''}.`);
+  pop(L_(h.loc),`+${n+extra}${RI[res]}`,'gain');
+}
+async function doSearchOnce(p,h,free){
+  const c=G.loc[h.loc];if(!c.search.length)return false;
+  if(!free)h.ap--;
+  const t=c.search.shift();c.disc.push(t);
+  if(t==='empty'){
+    log(`${pname(p)} finds an empty cupboard.`);pop(L_(h.loc),'empty','loss');
+    if(hasRoom(p,'forager')&&!p.cityBonus['f'+h.loc]){p.cityBonus['f'+h.loc]=1;p.res.wood++;p.res.metal++;log('Forager Den: +1🪵 +1🔩.')}
+  }else if(t==='algae'){lowerRad(p,1);log(`${pname(p)} finds Algae Capsules (radiation −1).`,'good');pop(L_(h.loc),'🌿 ☢−1','good')}
+  else{p.res[t]++;log(`${pname(p)} finds ${RI[t]} ${RN[t]}.`);pop(L_(h.loc),`+1${RI[t]}`,'gain')}
+  return true;
+}
+async function doSearch(p,h){
+  if(!await doSearchOnce(p,h,false))return;
+  if(hasRoom(p,'scouts')&&!p.cityBonus['s'+h.loc]){p.cityBonus['s'+h.loc]=1;log('Scout Post: 2 free Search tiles.');await doSearchOnce(p,h,true);await doSearchOnce(p,h,true)}
+}
+function doSalvage(p,h,idx){
+  const c=G.loc[h.loc];const t=c.equip.splice(idx,1)[0];h.ap--;
+  p.equip.push({id:t,fixed:false,used:false});log(`${pname(p)} salvages a broken ${EQ[t].n}.`);pop(L_(h.loc),`+${EQ[t].n}`,'gain');
+}
+function listActions(p,h){
+  const A=[];if(h.ap<=0)return A;
+  const L=h.loc,ap=h.ap,k=LOCS[L].k;
+  const res=LOC_RES[L],loc=G.loc[L];
+  const add=a=>A.push(a);
+  const needChip=L==='dam'&&!h.unlocked;
+  if(k==='dam'&&!h.unlocked&&loc.amt>0&&(eqReady(p,'card')||p.res.chip>0))
+    add({id:'unlock',kind:'unlock',ap:0,v:9,label:'Open the filtration',sub:eqReady(p,'card')?'Access Card — free':'Spend 1💾 (free action)',run:async()=>{if(useEq(p,'card')){}else p.res.chip--;h.unlocked=true;log(`${pname(p)} opens the Dam filtration.`)}});
+  if(res&&loc.amt>0&&!(k==='dam'&&!h.unlocked)){
+    const vv=resValue(p,res);
+    const n=Math.min(ap,loc.amt);
+    add({id:'s1',kind:'scav',ap:1,v:vv,label:`Gather 1 ${RI[res]} ${RN[res]}`,sub:'1 AP',run:()=>doScav(p,h,1)});
+    if(n>1)add({id:'sN',kind:'scav',ap:n,v:vv*n,label:`Gather ${n} ${RI[res]} ${RN[res]}`,sub:`${n} AP`,run:()=>doScav(p,h,n)});
+  }
+  if(k==='base'&&G.algae){
+    add({id:'algae',kind:'algae',ap:1,v:p.rad<3?(G.day>=3?1.7:1.2):0,label:'Harvest Anti-Radiation Algae',sub:'1 AP · radiation −1',run:async()=>{h.ap--;G.algae=false;lowerRad(p,1);log(`${pname(p)} harvests the Algae (radiation −1).`);pop(L_(h.loc),'🌿 ☢−1','good')}});
+  }
+  if(k==='wild'){
+    const hi=huntInfo(p,h);
+    if(hi&&hi.ok){
+      const gearCount=hi.gear;
+      add({id:'hunt',kind:'hunt',ap:Math.max(1,hi.minNeed),hi,v:((hi.yld+hi.bonus)*resValue(p,'meat')-Math.min(p.res.mun,hi.end)*resValue(p,'mun')*.6)/Math.max(1,hi.minNeed)||0,
+        label:`Hunt (Endurance ${hi.end}${G.fx.mut?' ▲':''})`,sub:`Yield ≈ ${hi.yld+hi.bonus}${RI.meat} · costs ${hi.end} AP, minus 1 per ${RI.mun} spent`+(gearCount?` · Strength gear −${gearCount}`:''),
+        run:async()=>{
+          let idx=0;
+          if(eqReady(p,'thermal')&&loc.game.length>1){
+            if(p.human){const id=await U().chooseOne(`${p.name}: Thermal Sensor — choose your prey`,loc.game.map((t,i)=>({id:String(i),label:`Endurance ${t.end+(G.fx.mut?1:0)} → ${Math.max(0,t.end-2+(p.caught[t.end]||0)-(G.fx.epi?1:0))}${RI.meat}`+(i===0?' (top)':'')})));idx=+id}
+            else{let b=-1,bi=0;loc.game.forEach((t,i)=>{const y=Math.max(0,t.end-2+(p.caught[t.end]||0))/Math.max(1,t.end+(G.fx.mut?1:0)-Math.min(p.res.mun,3));if(y>b&&(t.end+(G.fx.mut?1:0)-Math.min(p.res.mun,t.end))<=h.ap){b=y;bi=i}});idx=bi}
+          }
+          const t=loc.game[idx];const mutv=G.fx.mut&&!hasRoom(p,'bunker')?1:0;const end=t.end+mutv;
+          const gear=['shotgun','trap'].filter(id=>eqReady(p,id)).length;
+          const minM=Math.max(0,end-gear-h.ap);
+          let m;
+          if(p.human){
+            const maxM=Math.min(p.res.mun,end);
+            if(maxM<minM){log('Not enough Action Points or Munitions for that beast.');return}
+            m=maxM>minM?await U().amount({title:'Hunt: spend Munitions?',text:`Endurance ${end}. Each ${RI.mun} spent reduces it by 1; remaining cost is paid in Action Points (you have ${h.ap}).`,min:minM,max:maxM,def:minM}):minM;
+          }else{
+            m=minM;
+            if(p.res.mun>=5)m=Math.min(p.res.mun,end,Math.max(minM,Math.min(2,end-1)));
+          }
+          if(idx>0){ /* thermal pick: handled in doHunt via useEq */ }
+          await doHunt(p,h,idx,m);
+        }});
+    }
+  }
+  if(k==='city'){
+    if(loc.search.length)add({id:'search',kind:'search',ap:1,v:.85,label:'Draw a Search tile',sub:`1 AP · ${loc.search.length} left in the pile`,run:()=>doSearch(p,h)});
+    loc.equip.forEach((t,i)=>{
+      if(p.equip.some(e=>e.id===t))return;
+      add({id:'salv'+i,kind:'salv',ap:1,v:p.equip.filter(e=>!e.fixed).length>=3?.3:(G.day>=5?.4:.95),label:`Salvage ${EQ[t].n}`,sub:`1 AP · arrives broken · repair ${costStr(EQ[t].cost)}`,run:async()=>doSalvage(p,h,G.loc[L].equip.indexOf(t))});
+    });
+  }
+  if(canUse(p,'intel')&&p.human)add({id:'peek',kind:'peek',ap:0,v:0,label:'Look through a Search pile',sub:'Intel Office · free',run:async()=>{
+    const c=await U().chooseOne('Which City pile?',CITIES.map(x=>({id:x,label:LOCS[x].n})));
+    useRoom(p,'intel');await U().showPile(c,G.loc[c].search)}});
+  return A;
+}
+async function actionPhase(p,h){
+  h.ap=effStr(p,h);
+  if(h.loc==='cargo'){h.ap=0;return}
+  let guard=0;
+  while(guard++<40){
+    const acts=listActions(p,h);
+    render();
+    if(!acts.length)break;
+    let a;
+    if(p.human)a=await U().pickAction(p,h,acts);else a=aiPickAction(p,h,acts);
+    if(!a||a.id==='done')break;
+    await a.run();
+    if(!p.human)await sleep(180);
+  }
+  h.ap=0;
+}
+
+/* ---------- AI: day ---------- */
+function aiPickAction(p,h,acts){
+  const cand=acts.filter(a=>a.v>0.3||a.kind==='unlock');
+  if(!cand.length)return null;
+  cand.sort((a,b)=>(b.v/Math.max(1,b.kind==='scav'&&b.id==='sN'?b.ap:1))-(a.v/Math.max(1,a.kind==='scav'&&a.id==='sN'?a.ap:1)));
+  // prefer bulk scavenging when it is the best per-AP option
+  const best=cand[0];
+  if(best.kind==='scav'){const bulk=cand.find(a=>a.kind==='scav'&&a.id==='sN');if(bulk)return bulk}
+  return best;
+}
+function locValue(p,h,L,str,here){
+  const k=LOCS[L].k,res=LOC_RES[L],loc=G.loc[L];let v=0;
+  if(k==='cargo'){
+    const o=cargoOptions(p,h);if(!o.length)return -5;
+    const best=o.map(x=>CARGO_SPOTS[x.i].canned*resValue(p,'canned')+2.2).sort((a,b)=>b-a)[0];
+    v=best+(G.cargoClaimed?0:.7)+(canUse(p,'depot')?1.4:0)+(canUse(p,'dock')?2.8:0)+(eqReady(p,'hacksaw')?2:0);
+    return v;
+  }
+  if(k==='base'){
+    const n=Math.min(str,loc.amt);
+    v=n*resValue(p,'mun')+(G.algae&&p.rad<3?1.3:0)+(eqReady(p,'crowbar')?2.2:0);
+    if(eqReady(p,'ammobox')&&n>0)v+=Math.min(2,loc.amt-n)*resValue(p,'mun');
+    return v;
+  }
+  if(k==='dam'){
+    if(!eqReady(p,'card')&&p.res.chip<1)return 0;
+    const n=Math.min(str,loc.amt);
+    return n*resValue(p,'water')-(eqReady(p,'card')?0:resValue(p,'chip'))+(eqReady(p,'jerrycan')&&n>0?Math.min(1,loc.amt-n):0);
+  }
+  if(k==='wild'){
+    const n=Math.min(str,loc.amt);let sc=n*resValue(p,res);
+    const bon={forest:'axe',mine:'pickaxe',fair:'backpack'}[L];
+    if(bon&&eqReady(p,bon)&&n>0)sc+=Math.min(2,loc.amt-n)*resValue(p,res);
+    let hv=0;
+    if(loc.game.length){
+      const t=loc.game[0],end=t.end+(G.fx.mut?1:0),y=Math.max(0,t.end-2+(p.caught[t.end]||0)-(G.fx.epi?1:0))+(canUse(p,'lodge')?2:0)+(canUse(p,'snares')?1:0);
+      const m=Math.min(p.res.mun,Math.min(end,2)),need=Math.max(1,end-m);
+      if(need<=str){hv=y*resValue(p,'meat')-m*.5+(str-need)*resValue(p,res)*.8}
+    }
+    v=Math.max(sc,hv);
+    const vis={forest:['bow','meat',1],mine:['purifier','water',1],fair:['detector','canned',1]}[L];
+    if(vis&&eqReady(p,vis[0]))v+=resValue(p,vis[1]);
+    return v;
+  }
+  if(k==='city'){
+    const n=Math.min(str,loc.search.length+loc.equip.length);
+    v=n*.8+(eqReady(p,'chainsaw')?2:0)+(eqReady(p,'flashlight')?2.2:0)+(hasRoom(p,'scouts')&&!p.cityBonus['s'+L]?1.5:0);
+    return v;
+  }
+  return 0;
+}
+function aiChooseMove(p){
+  let best=null;
+  for(let hi=0;hi<p.heroes.length;hi++){
+    const h=p.heroes[hi];if(h.state!=='idle')continue;
+    for(const d of destinations(p,h)){
+      const str=effStr(p,h);let v=locValue(p,h,d.loc,str,[]);
+      for(const q of G.players){
+        if(q===p)continue;
+        for(const x of q.heroes)if(x.loc===d.loc&&x.state==='act'&&x.str<h.str){
+          const pts=h.str-x.str,avail=RES_ALL.filter(r=>r!=='mun').reduce((a,r)=>a+q.res[r],0);
+          v+=Math.min(pts,avail)*(q.res.mun>=pts?.35:.9);
+        }
+      }
+      if(d.exo)v-=.4;
+      v+=rand()*.35;
+      if(!best||v>best.v)best={hi,loc:d.loc,v};
+    }
+  }
+  return best;
+}
+
+/* ---------- night ---------- */
+function applyEventDiscount(p,cost){
+  const opts=[];
+  const sup=SUPS.filter(r=>cost[r]>0);
+  if(sup.length){const c={...cost};const r=sup.sort((a,b)=>(c[b]-p.res[b])-(c[a]-p.res[a]))[0];c[r]--;opts.push(c)}
+  const mm=[...MATS,'mun'];
+  if(mm.some(r=>cost[r]>0)){const c={...cost};for(let k=0;k<2;k++){const rs=mm.filter(r=>c[r]>0).sort((a,b)=>(c[b]-p.res[b])-(c[a]-p.res[a]));if(!rs.length)break;c[rs[0]]--}opts.push(c)}
+  if(!opts.length)return null;
+  opts.sort((a,b)=>(short(p,a)-short(p,b))||(sumObj(a)-sumObj(b)));
+  return opts[0];
+}
+function eventCost(p,id){
+  const base=EVENTS[id].cost;
+  if(canUse(p,'command')){const d=applyEventDiscount(p,base);if(d)return{cost:d,disc:true}}
+  return{cost:{...base},disc:false};
+}
+function supplyNeeds(p,extraRooms){
+  const rows=Math.ceil(p.air/AIR_ROW);
+  const rooms=p.rooms.filter(r=>r.built&&r.pop>0).reduce((a,r)=>a+ROOMS[r.k].up,0);
+  return{rows,rooms};
+}
+async function nightPhase(){
+  G.phase='night';
+  for(const p of G.players)for(const h of p.heroes){h.state='idle';h.spot=null}
+  log(`— Day ${G.day} · Night falls.`,'phase');render();
+  await fx('banner',`Night ${G.day}`,'Overcome events · feed · radiation · recruit · build · repair','night');
+  // 1 events
+  let passes=0,i=0,guard=0;
+  const ord=order();
+  while(G.active.length&&passes<G.n&&guard++<80){
+    const p=ord[i%G.n];i++;
+    const ch=await decideEvent(p);
+    if(ch){
+      const{cost,disc}=eventCost(p,ch);
+      if(disc)useRoom(p,'command');
+      for(const r in cost)p.res[r]-=cost[r];
+      p.events.push(ch);G.active.splice(G.active.indexOf(ch),1);pop(P_(p),`+${EVENTS[ch].sp} SP`,'good');await fx('turn',p,'night');await sleep(700);
+      log(`${pname(p)} Overcomes ${EVENTS[ch].n} (+${EVENTS[ch].sp} SP) for ${costStr(cost)}.`,'good');
+      passes=0;render();
+    }else passes++;
+  }
+  // 2 feed, 3 radiation
+  for(const p of ord){await fx('focus',p);await feedStep(p);await sleep(500)}
+  for(const p of ord){await fx('focus',p);await radStep(p);await sleep(500)}
+  render();
+  // 4-6
+  for(const p of ord){
+    if(p.human){await handoff(p);await U().nightReport(p);await U().shelter(p)}
+    else await aiNight(p);
+    await fx('turnEnd',p,'night');
+  }
+  // 7 upkeep
+  for(const p of ord){p.res.meat=0;p.res.water=Math.min(p.res.water,2)}
+  render();
+}
+async function decideEvent(p){
+  const aff=G.active.filter(id=>canPay(p,eventCost(p,id).cost));
+  if(!aff.length)return null;
+  if(p.human){
+    const opts=aff.map(id=>{const c=eventCost(p,id);return{id,label:`${EVENTS[id].n}  (+${EVENTS[id].sp} SP)`,sub:`Cost ${costStr(c.cost)}${c.disc?' (Command Post discount)':''} — ${EVENTS[id].t}`}});
+    opts.push({id:'pass',label:'Pass',sub:'Let the next Tribe decide.'});
+    await handoff(p);
+    const r=await U().chooseOne(`${p.name}: Overcome an Event?`,opts,'Overcome Events to stop their effects and score their Survival Points.');
+    return r==='pass'?null:r;
+  }
+  let best=null;
+  for(const id of aff){
+    const c=eventCost(p,id).cost;
+    const after={...p.res};for(const r in c)after[r]-=c[r];
+    const need=supplyNeeds(p);
+    const supAfter=SUPS.reduce((a,r)=>a+after[r],0);
+    if(supAfter<need.rows+need.rooms||after.water<need.rows)continue;
+    const toks=sumObj(c);
+    const harm=['cloud','clan','cold','rats','sandstorm','wildfire','cavein','thieves','lean'].includes(id)?1.2:.5;
+    const ratio=(EVENTS[id].sp+harm*Math.max(0,6-G.day))/Math.max(1,toks);
+    if(ratio>=.95&&(!best||ratio>best.r))best={id,r:ratio};
+  }
+  return best?best.id:null;
+}
+async function feedStep(p){
+  const rows=Math.ceil(p.air/AIR_ROW);
+  let needRows=rows,perm=hasRoom(p,'cistern')?activeRooms(p,'cistern').length:0;
+  const fp=Math.min(perm,needRows);needRows-=fp;perm-=fp;
+  const wu=Math.min(needRows,p.res.water);p.res.water-=wu;needRows-=wu;
+  let need=p.rooms.filter(r=>r.built&&r.pop>0).reduce((a,r)=>a+ROOMS[r.k].up,0);
+  const pu=Math.min(perm,need);need-=pu;
+  while(need>0){
+    if(p.res.meat>0)p.res.meat--;
+    else if(p.res.water>2)p.res.water--;
+    else if(p.res.canned>0)p.res.canned--;
+    else if(p.res.water>0)p.res.water--;
+    else break;
+    need--;
+  }
+  const shortN=needRows+need;
+  p.report.push(`Fed ${survivors(p)} Survivors (Airlock rows: ${rows}💧, Rooms upkeep).`);
+  pop(P_(p),`fed ${survivors(p)}👤`,'feed');
+  if(shortN>0){log(`${pname(p)} is short ${shortN} Supply — Survivors starve.`,'bad');await loseSurvivors(p,shortN,'starvation')}
+}
+async function radStep(p){
+  const L=RAD_DAY[G.day-1];
+  if(canUse(p,'scrubber')){useRoom(p,'scrubber');lowerRad(p,1);log(`${pname(p)}'s Scrubber lowers radiation by 1.`);pop(P_(p),'☢ −1','good')}
+  const absorb=p.air+(hasRoom(p,'sealdoor')?1:0);
+  const leak=Math.max(0,L-absorb);
+  p.report.push(`Radiation ${L}: absorbed ${Math.min(L,absorb)}, leaked ${leak}. Gauge now ${p.rad-leak}.`);
+  if(leak){log(`${pname(p)} takes ${leak} radiation.`,'bad');pop(P_(p),`☢ +${leak}`,'rad');await addRad(p,leak,'night')}
+}
+
+/* ----- night shelter operations (used by humans through the UI and by AI) ----- */
+function recruitMax(p){return Math.max(0,Math.min(nSup(p),AIR_MAX-p.air))}
+function paySupplies(p,n){
+  for(let i=0;i<n;i++){
+    if(p.res.meat>0)p.res.meat--;else if(p.res.water>2)p.res.water--;else if(p.res.canned>0)p.res.canned--;else p.res.water--;
+  }
+}
+function recruit(p,n){n=Math.min(n,recruitMax(p));if(n<=0)return 0;paySupplies(p,n);p.air+=n;log(`${pname(p)} recruits ${n} Survivor${n>1?'s':''}.`);pop(P_(p),`+${n}👤`,'surv');return n}
+function moveToRoom(p,ri,n){
+  const r=p.rooms[ri];if(!r.built)return 0;
+  n=Math.min(n,p.air,ROOMS[r.k].cap-r.pop);if(n<=0)return 0;
+  p.air-=n;r.pop+=n;return n;
+}
+function autoPay(p,allowed,n){
+  const pay={};let left=n;
+  while(left>0){
+    const r=allowed.slice().sort((a,b)=>(p.res[b]-(pay[b]||0))-(p.res[a]-(pay[a]||0)))[0];
+    if(p.res[r]-(pay[r]||0)<=0)break;
+    pay[r]=(pay[r]||0)+1;left--;
+  }
+  return pay;
+}
+async function payMaterials(p,n,allowed){
+  allowed=allowed||MATS;
+  if(n<=0)return{};
+  const have=tot(p,allowed);if(have<n)return null;
+  const types=allowed.filter(r=>p.res[r]>0);
+  let pay;
+  if(p.human&&types.length>1&&have>n)pay=await U().payDialog({title:'Choose what to pay',allowed:types,n,p});
+  else pay=autoPay(p,allowed,n);
+  for(const r in pay)p.res[r]-=pay[r];
+  return pay;
+}
+function buildCost(p){return canUse(p,'foundry')?1:3}
+async function buildRoom(p,ri){
+  const r=p.rooms[ri];if(r.built)return false;
+  const c=buildCost(p);if(nMat(p)<c)return false;
+  const pay=await payMaterials(p,c);if(!pay)return false;
+  if(c===1)useRoom(p,'foundry');
+  r.built=true;log(`${pname(p)} builds ${ROOMS[r.k].n}.`,'good');pop(P_(p),`built ${ROOMS[r.k].n}`,'build');return true;
+}
+function repairQuote(p,eq){
+  const cost={...EQ[eq.id].cost};const used=[];
+  const reduce=k=>{
+    for(let i=0;i<k;i++){
+      const rs=Object.keys(cost).filter(r=>cost[r]>0).sort((a,b)=>(cost[b]-p.res[b])-(cost[a]-p.res[a]));
+      if(!rs.length)return;cost[rs[0]]--;
+    }
+  };
+  let left=sumObj(cost);
+  const rooms=[['mechanic',99],['rebuild',2],['workshop',1]];
+  const taken={};
+  for(const[k,amt]of rooms){
+    if(sumObj(cost)<=0)break;
+    const n=activeRooms(p,k).filter(r=>!r.used).length-(taken[k]||0);
+    if(n>0){taken[k]=(taken[k]||0)+1;used.push(k);if(amt===99)Object.keys(cost).forEach(r=>cost[r]=0);else reduce(amt)}
+  }
+  return{cost,used};
+}
+function repairEq(p,ei){
+  const eq=p.equip[ei];if(!eq||eq.fixed)return false;
+  const q=repairQuote(p,eq);
+  if(!canPay(p,q.cost))return false;
+  q.used.forEach(k=>useRoom(p,k));
+  for(const r in q.cost)p.res[r]-=q.cost[r];
+  eq.fixed=true;log(`${pname(p)} repairs ${EQ[eq.id].n}.`,'good');pop(P_(p),`repaired ${EQ[eq.id].n}`,'build');return true;
+}
+const NIGHT_ABILITY=['armory','cache','lab','scrapper','barracks'];
+async function useAbility(p,ri){
+  const r=p.rooms[ri];if(!r||!isFull(r)||r.used||!NIGHT_ABILITY.includes(r.k))return false;
+  switch(r.k){
+    case'armory':p.res.mun+=4;log(`${pname(p)} takes 4${RI.mun} from the Armory.`);break;
+    case'cache':drawEquipFor(p);break;
+    case'lab':drawEquipFor(p);drawEquipFor(p);break;
+    case'barracks':if(r.pop>=8)return false;r.pop++;log(`${pname(p)}'s Barracks takes in a Survivor.`);break;
+    case'scrapper':{
+      if(!p.equip.length)return false;
+      let id;
+      if(p.human)id=await U().chooseOne('Destroy which Equipment?',p.equip.map((e,i)=>({id:String(i),label:`${EQ[e.id].n} (${e.fixed?'repaired':'broken'})`,sub:`Returns ${costStr(EQ[e.id].cost)}`})));
+      else return false;
+      const e=p.equip.splice(+id,1)[0];for(const m in EQ[e.id].cost)p.res[m]+=EQ[e.id].cost[m];log(`${pname(p)} scraps ${EQ[e.id].n}.`);break}
+  }
+  r.used=true;return true;
+}
+
+/* ---------- AI: night ---------- */
+function nextRad(){return RAD_DAY[Math.min(5,G.day)]}
+async function aiNight(p){
+  const last=G.day>=6;
+  await fx('turn',p,'night');await sleep(500);
+  // abilities that give stuff
+  for(let i=0;i<p.rooms.length;i++){
+    const k=p.rooms[i].k;
+    if(!isFull(p.rooms[i])||p.rooms[i].used)continue;
+    if(k==='armory'||k==='barracks')await useAbility(p,i);
+    if((k==='cache'||k==='lab')&&p.equip.filter(e=>!e.fixed).length<3&&G.day<=5)await useAbility(p,i);
+  }
+  // recruit
+  const need=supplyNeeds(p);
+  let budget=nSup(p);
+  if(!last){
+    const keep=Math.ceil(.25*(need.rows+need.rooms+2));
+    budget=Math.max(0,Math.min(recruitMax(p),(p.res.meat+Math.max(0,p.res.water-2))+Math.max(0,p.res.canned-keep)));
+  }else budget=recruitMax(p);
+  recruit(p,budget);await sleep(650);
+  const doPop=()=>aiPopulate(p,last);
+  const pv=survivors(p);doPop();render();await sleep(450);
+  // build / repair loop
+  for(let g=0;g<6;g++){
+    let did=false;
+    const unbuilt=p.rooms.map((r,i)=>({r,i})).filter(x=>!x.r.built).sort((a,b)=>ROOMS[b.r.k].pri-ROOMS[a.r.k].pri);
+    const builtCount=p.rooms.filter(r=>r.built).length;
+    const bc=buildCost(p);
+    if(unbuilt.length&&nMat(p)>=bc){
+      const x=unbuilt[0];
+      const cap=ROOMS[x.r.k].cap;
+      const canFill=p.air>=cap-(last?0:1)||(!last&&G.day<=3);
+      const sensible=builtCount<=Math.ceil(survivors(p)/3)+1;
+      if(canFill&&sensible&&(!last||p.air>=cap)){if(await buildRoom(p,x.i)){did=true;doPop();render();await sleep(650)}}
+    }
+    if(!did){
+      const broken=p.equip.map((e,i)=>({e,i})).filter(x=>!x.e.fixed).filter(x=>canPay(p,repairQuote(p,x.e).cost));
+      if(broken.length){if(repairEq(p,broken[0].i)){did=true;render();await sleep(650)}}
+    }
+    if(!did)break;
+  }
+  // leftover: more recruits if possible on last night
+  if(last){recruit(p,recruitMax(p));aiPopulate(p,true)}
+}
+function aiPopulate(p,last){
+  const L=last?0:nextRad();
+  const sealed=hasRoom(p,'sealdoor')?1:0;
+  const nightsLeft=Math.max(0,6-G.day);
+  let guard=0;
+  while(p.air>0&&guard++<40){
+    const cand=p.rooms.map((r,i)=>({r,i,rem:ROOMS[r.k].cap-r.pop})).filter(x=>x.r.built&&x.rem>0).sort((a,b)=>a.rem-b.rem||ROOMS[b.r.k].pri-ROOMS[a.r.k].pri);
+    if(!cand.length)break;
+    const x=cand[0];
+    const keep=last?0:Math.max(0,L-sealed);
+    const free=Math.max(0,p.air-keep);
+    if(x.rem<=p.air){
+      const leakNow=Math.max(0,L-sealed-p.air),leakAfter=Math.max(0,L-sealed-(p.air-x.rem));
+      const cost=(leakAfter-leakNow)*nightsLeft;
+      const fullCount=p.rooms.filter(isFull).length;
+      const gain=ROOM_SCORE[Math.min(7,fullCount+1)]-ROOM_SCORE[fullCount]+1.2;
+      if(gain>=cost){moveToRoom(p,x.i,x.rem);continue}
+    }
+    if(free>0){moveToRoom(p,x.i,Math.min(free,x.rem));continue}
+    break;
+  }
+}
+
+/* ---------- scoring ---------- */
+function scoreOf(p){
+  const ev=p.events.reduce((a,e)=>a+EVENTS[e].sp,0);
+  const full=p.rooms.filter(isFull).length;
+  const fixed=p.equip.filter(e=>e.fixed);
+  const sides={};fixed.forEach(e=>{const s=EQ[e.id];(sides[s.sym]=sides[s.sym]||new Set()).add(s.side)});
+  const pairs=Object.values(sides).filter(s=>s.size===2).length;
+  const out={events:ev,rooms:ROOM_SCORE[full],fullRooms:full,rad:p.rad,survivors:survivors(p),equip:fixed.length,pairs};
+  out.total=out.events+out.rooms+out.rad+out.survivors+out.equip+out.pairs;
+  return out;
+}
+function finalResult(){
+  const rows=G.players.map(p=>({p,s:scoreOf(p),sup:nSup(p),oth:nMat(p)+p.res.mun}));
+  rows.sort((a,b)=>b.s.total-a.s.total||b.sup-a.sup||b.oth-a.oth);
+  G.result=rows;return rows;
+}
+
+/* ---------- main loop ---------- */
+async function runGame(cfg){
+  makeGame(cfg);
+  await setupGame();
+  for(G.day=1;G.day<=6;G.day++){
+    dawn();render();
+    await fx('banner',`Day ${G.day}`,'Dawn — the wastelands are replenished','dawn');
+    await dayPhase();
+    await nightPhase();
+  }
+  G.day=6;G.phase='over';G.over=true;
+  const r=finalResult();
+  render();
+  const u=U();if(u&&u.final)await u.final(r);
+  return r;
+}
+
+</script>
+<script>
+/* =====================================================================
+   OUTLIVE — digital prototype: user interface (v0.2)
+   ===================================================================== */
+(function(){
+const VERSION='v0.3.0';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const V={view:0,pm:null,pa:null,pl:null,night:null,recN:0,busy:false,logs:[],modalOpen:false,
+  speed:2.2,anim:true,follow:true,gen:0,paused:false,resume:[],turn:null,cap:'',curHero:null,
+  flash:{},shake:{},live:false,cfg:null,tut:false,coached:{},prev:{},pops:{},pctx:'pause'};
+try{const s=JSON.parse(localStorage.getItem('outlive.settings')||'null');if(s){if(typeof s.speed==='number')V.speed=s.speed;if(typeof s.anim==='boolean')V.anim=s.anim;if(typeof s.follow==='boolean')V.follow=s.follow}}catch(e){}
+const saveSet=()=>{try{localStorage.setItem('outlive.settings',JSON.stringify({speed:V.speed,anim:V.anim,follow:V.follow}))}catch(e){}};
+const sfx=n=>{try{Sound.sfx(n)}catch(e){}};
+const NEVER=new Promise(()=>{});
+
+/* ---------- custom artwork: stays on this device (IndexedDB), never uploaded ---------- */
+const ART={map:null,mapRatio:null,leaders:{},names:{}};
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('outlive-art',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+async function kvGet(k){try{const d=await idb();return await new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}}
+async function kvSet(k,v){try{const d=await idb();await new Promise(r=>{const t=d.transaction('kv','readwrite');v==null?t.objectStore('kv').delete(k):t.objectStore('kv').put(v,k);t.oncomplete=()=>r();t.onerror=()=>r()})}catch(e){}}
+function pickFile(){return new Promise(res=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>res(i.files&&i.files[0]||null);i.oncancel=()=>res(null);i.click()})}
+async function shrink(file,max){
+  const bm=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bm.width,bm.height));
+  const c=document.createElement('canvas');c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);
+  c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+  return {blob:await new Promise(r=>c.toBlob(r,'image/jpeg',.88)),w:c.width,h:c.height};
+}
+async function loadArt(){
+  const m=await kvGet('map');
+  if(m&&m.blob){ART.map=URL.createObjectURL(m.blob);ART.mapRatio=m.w/m.h}
+  for(const l of LEADERS){
+    const b=await kvGet('leader:'+l.id);if(b)ART.leaders[l.id]=URL.createObjectURL(b);
+    const n=await kvGet('name:'+l.id);if(n){ART.names[l.id]=n;l.n=n}
+  }
+}
+async function setMap(file){
+  const r=await shrink(file,1800);await kvSet('map',{blob:r.blob,w:r.w,h:r.h});
+  if(ART.map)URL.revokeObjectURL(ART.map);ART.map=URL.createObjectURL(r.blob);ART.mapRatio=r.w/r.h;
+}
+async function clearMap(){await kvSet('map',null);if(ART.map)URL.revokeObjectURL(ART.map);ART.map=null;ART.mapRatio=null}
+async function setLeaderImg(id,file){
+  const r=await shrink(file,360);await kvSet('leader:'+id,r.blob);
+  if(ART.leaders[id])URL.revokeObjectURL(ART.leaders[id]);ART.leaders[id]=URL.createObjectURL(r.blob);
+}
+async function clearLeaderImg(id){await kvSet('leader:'+id,null);if(ART.leaders[id])URL.revokeObjectURL(ART.leaders[id]);delete ART.leaders[id]}
+const portrait=(id,cls)=>ART.leaders[id]?`<img class="${cls||'por'}" src="${ART.leaders[id]}" alt="">`:'';
+
+/* ---------- timing (pause + abort aware) ---------- */
+function wait(ms){
+  const g=V.gen;
+  return new Promise(res=>{
+    setTimeout(async()=>{
+      while(V.paused&&g===V.gen)await new Promise(r=>V.resume.push(r));
+      if(g!==V.gen)return;           // game was abandoned: the old game never continues
+      res();
+    },Math.max(0,ms));
+  });
+}
+const scale=()=>V.speed/2.2;
+
+/* ---------- icons ---------- */
+const ICON={
+  pause:'<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  music:'<svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/><line class="x" x1="3" y1="3" x2="21" y2="21"/></svg>',
+  sfx:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><line class="x" x1="3" y1="3" x2="21" y2="21"/></svg>'
+};
+function renderCluster(){
+  const st=Sound.state;
+  $('#cluster').innerHTML=`<button class="ibtn ${st.music?'':'off'}" data-a="tmusic" title="Music on/off" aria-label="Music">${ICON.music}</button><button class="ibtn ${st.sfx?'':'off'}" data-a="tsfx" title="Sound effects on/off" aria-label="Sound effects">${ICON.sfx}</button>${V.live?`<button class="ibtn" data-a="pause" title="Pause menu (Esc)" aria-label="Pause menu">${ICON.pause}</button>`:''}`;
+  $('#cluster').classList.add('on');
+}
+
+/* ---------- modal system ---------- */
+function openModal(build,opts){
+  opts=opts||{};
+  return new Promise(resolve=>{
+    const root=$('#modal');
+    root.innerHTML='';
+    const box=document.createElement('div');box.className='mbox'+(opts.wide?' wide':'');
+    root.appendChild(box);root.classList.add('on');V.modalOpen=true;sfx('open');
+    const done=v=>{root.classList.remove('on');root.innerHTML='';V.modalOpen=false;renderTurn();resolve(v)};
+    V._closeModal=()=>{root.classList.remove('on');root.innerHTML='';V.modalOpen=false};
+    build(box,done);
+    box.scrollTop=0;renderTurn();
+  });
+}
+function btn(label,cls,fn,sub){
+  const b=document.createElement('button');b.className='btn '+(cls||'');
+  b.innerHTML=`<span class="bl">${label}</span>`+(sub?`<span class="bs">${sub}</span>`:'');
+  b.onclick=fn;return b;
+}
+function head(box,title,text){
+  const h=document.createElement('h2');h.innerHTML=title;box.appendChild(h);
+  if(text){const p=document.createElement('p');p.className='mtext';p.innerHTML=text;box.appendChild(p)}
+}
+function infoModal(title,html){return openModal((box,done)=>{head(box,title);const d=document.createElement('div');d.className='mtext';d.innerHTML=html;box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))})}
+
+/* ---------- coach (tutorial hints) ---------- */
+function coach(key,title,html){
+  if(!V.tut||V.coached[key])return;
+  V.coached[key]=1;
+  const el=$('#coach');
+  el.innerHTML=`<div class="ct">Tutorial · ${esc(title)}</div><div class="cb">${html}</div><div class="cr"><button data-a="coachx">Got it</button></div>`;
+  el.classList.add('on');sfx('select');
+}
+const hideCoach=()=>$('#coach').classList.remove('on');
+
+/* ---------- small html helpers ---------- */
+const resChip=(r,n,chg)=>`<span class="rc ${chg?'chg':''}" title="${RN[r]}">${RI[r]}<b>${n}</b></span>`;
+const costHtml=c=>Object.entries(c).filter(([,v])=>v>0).map(([r,v])=>`<span class="cc">${v}${RI[r]}</span>`).join(' ')||'<span class="cc">free</span>';
+function eqChip(id,state){
+  const e=EQ[id];
+  return `<button class="eq ${state||''}" data-a="infoeq" data-id="${id}" title="${esc(e.t)}"><span class="sym" style="color:${SYM_COL[e.sym]}">${SYMS[e.sym]}</span>${esc(e.n)}</button>`;
+}
+function heroTok(p,hi){
+  const h=p.heroes[hi];
+  const cls=['hero',h.state==='act'?'act':'idle'];
+  if(V.pm&&V.pm.p===p&&h.state==='idle'&&V.pm.opts.some(o=>o.hi===hi))cls.push('pick');
+  if(V.pm&&V.pm.p===p&&V.pm.sel===hi)cls.push('sel');
+  if(h.state==='act'&&V.pa&&V.pa.h===h)cls.push('turn');
+  if(V.curHero===h)cls.push('turn');
+  return `<button class="${cls.join(' ')}" style="--c:${p.color.hex}" data-a="hero" data-p="${p.id}" data-hi="${hi}" title="${esc(p.name)} · Strength ${h.str} · ${h.state==='act'?'activated':'idle'}">${h.str}</button>`;
+}
+
+/* ---------- original board art (simple silhouettes, not the official illustration) ---------- */
+function art(k){
+  const tr=(x,y,s)=>`<path d="M${x} ${y-14*s}l${6*s} ${14*s}h${-12*s}z M${x} ${y-8*s}l${8*s} ${10*s}h${-16*s}z"/>`;
+  const bld=(x,w,h)=>`<rect x="${x}" y="${60-h}" width="${w}" height="${h}"/>`;
+  let g='';
+  switch(k){
+    case'forest':g=[8,22,36,50,64,80,92].map((x,i)=>tr(x,58,1+(i%3)*.25)).join('');break;
+    case'dam':g='<path d="M0 22h100v8H0z"/><path d="M4 30h92v26H4z" opacity=".7"/><path d="M40 8h20v14H40z"/><path d="M0 50q25-6 50 0t50 0v10H0z" opacity=".5"/>';break;
+    case'mb':g='<path d="M4 58a12 14 0 0 1 24 0zM34 58a12 14 0 0 1 24 0zM64 58a12 14 0 0 1 24 0z"/><rect x="90" y="18" width="4" height="40"/><path d="M86 18h12l-6-8z"/>';break;
+    case'city':g=bld(6,12,34)+bld(20,10,48)+bld(32,14,28)+bld(48,10,52)+bld(60,14,36)+bld(76,10,44)+bld(88,9,26);break;
+    case'fair':g='<circle cx="68" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="68" cy="34" r="3"/><path d="M68 12v44M46 34h44M52 18l32 32M84 18L52 50" stroke="currentColor" stroke-width="1" fill="none"/><path d="M4 56q10-34 24-8t24 8" fill="none" stroke="currentColor" stroke-width="2"/>';break;
+    case'cargo':g='<path d="M4 44h92l-10 14H16z"/><rect x="20" y="30" width="12" height="14"/><rect x="34" y="26" width="12" height="18"/><rect x="48" y="32" width="12" height="12"/><rect x="62" y="28" width="12" height="16"/><rect x="76" y="34" width="10" height="10"/>';break;
+    case'mine':g='<ellipse cx="55" cy="56" rx="48" ry="9"/><ellipse cx="55" cy="46" rx="36" ry="8" opacity=".8"/><ellipse cx="55" cy="37" rx="24" ry="6" opacity=".6"/><ellipse cx="55" cy="29" rx="12" ry="4" opacity=".5"/>';break;
+  }
+  return `<svg class="art" viewBox="0 0 100 60" preserveAspectRatio="xMidYMax slice" fill="currentColor" aria-hidden="true">${g}</svg>`;
+}
+const ART_OF={forest:'forest',dam:'dam',mb:'mb',bc:'city',sp:'city',fair:'fair',cargo:'cargo',mine:'mine'};
+
+/* ---------- rendering ---------- */
+function renderTop(){
+  if(!G)return;
+  const pips=[];
+  for(let d=1;d<=6;d++){
+    const rev=d<=G.day&&G.events[d-1]&&(d<G.day||G.phase!=='dawn');
+    const ev=rev?EVENTS[G.events[d-1]].n:'?';
+    const cls=d===G.day?'cur':(d<G.day?'past':'');
+    const taken=rev&&!G.active.includes(G.events[d-1]);
+    pips.push(`<div class="pip ${cls} ${taken?'solved':''}"><span class="pd">DAY ${d}</span><span class="pe">${esc(ev)}</span><span class="pr">☢${RAD_DAY[d-1]}</span></div>`);
+  }
+  const first=G.players[G.first];
+  const phase=G.phase==='setup'?'Setup':G.phase==='over'?'Game over':({dawn:'Dawn',day:'Day',night:'Night'}[G.phase]||'');
+  $('#top').innerHTML=`<div class="brand">OUTLIVE<small>digital prototype</small></div>
+    <div class="convoy">${pips.join('')}</div>
+    <div class="tinfo"><div><span class="pill ${G.phase}">${phase}</span></div>
+    <div class="first" title="First Player token"><span class="dot" style="background:${first.color.hex}"></span>${esc(first.name)} first</div></div>`;
+  const act=G.active.map(id=>`<button class="evc" data-a="infoev" data-id="${id}" title="${esc(EVENTS[id].t)}"><b>${esc(EVENTS[id].n)}</b><span>${costHtml(EVENTS[id].cost)} · +${EVENTS[id].sp} SP</span></button>`).join('');
+  $('#events').innerHTML=act?`<span class="elabel">Active events</span>${act}`:`<span class="elabel dim">No active events</span>`;
+}
+function renderTurn(){
+  const el=$('#turnbar');if(!el)return;
+  if(!G||!G.players.length){el.innerHTML='';return}
+  let cur=null,mode='idle',sub='';
+  if(V.pm){cur=V.pm.p;mode='you';sub=V.pm.sel==null?'Tap one of your glowing Heroes, then a highlighted Location.':'Now tap a highlighted Location to move there.'}
+  else if(V.pa){cur=V.pa.p;mode='you';sub=`Hero (Strength ${V.pa.h.str}) at ${LOCS[V.pa.h.loc].n} · ${V.pa.h.ap} AP left — choose an action.`}
+  else if(V.pl){cur=V.pl.p;mode='you';sub=V.pl.prompt}
+  else if(V.night){cur=V.night.p;mode='you';sub='Manage your Shelter: recruit, fill Rooms, build, repair — then press End turn.'}
+  else if(V.turn){cur=V.turn.p;mode=cur.human?(V.modalOpen?'you':'wait'):'ai';if(mode==='you')sub='Make your choice.'}
+  const phase=G.phase==='over'?'Game over':({dawn:'Dawn',day:'Day phase',night:'Night phase'}[G.phase]||'Setup');
+  const chips=G.players.map(p=>{
+    const idle=p.heroes.filter(h=>h.state==='idle').length;
+    return `<span class="pc ${p===cur?'cur':''}" style="--c:${p.color.hex}"><i class="dot" style="background:${p.color.hex}"></i>${esc(p.name)}${p.human?'':' <em>AI</em>'}${G.phase==='day'?` <small>${idle}/4</small>`:''}</span>`;
+  }).join('');
+  let who,end='';
+  if(mode==='you'){
+    who=`<div class="who"><b class="y">▶ ${G.humans===1?'YOUR TURN':esc(cur.name).toUpperCase()+"'S TURN"}</b><span class="cap">${esc(sub)}</span></div>`;
+    if(V.pa)end=`<button class="endturn" data-a="endturn">End Hero's turn</button>`;
+    else if(V.night)end=`<button class="endturn" data-a="endturn">End turn</button>`;
+    else if(V.pm)end=`<button class="endturn" disabled>Move a Hero first</button>`;
+  }else if(mode==='ai'){
+    who=`<div class="who"><b><span class="spin"></span>${esc(cur.name)} (AI) is playing…</b><span class="cap">${esc(V.cap||'')}</span></div>`;
+  }else{
+    who=`<div class="who"><b>${phase}</b><span class="cap">${esc(V.cap||'')}</span></div>`;
+  }
+  el.className=mode==='you'?'you':mode==='ai'?'ai':'';
+  el.style.setProperty('--c',cur?cur.color.hex:'#555');
+  el.innerHTML=`${who}<div class="order">${chips}</div>${end}`;
+  $('#app').classList.toggle('aiplay',mode==='ai');
+}
+function hubHtml(){
+  if(ART.map)return '';
+  const ph=G.phase==='night'?'🌙':G.phase==='dawn'?'🌅':'☀️';
+  const d=Math.max(1,Math.min(6,G.day||1));
+  return `<div class="hub"><div class="hd">DAY</div><div class="hn">${d}<small style="font-size:.35em;opacity:.6">/6</small></div><div class="hp">${ph}</div><div class="hr" title="Radiation added to every Shelter tonight">☢ tonight +${RAD_DAY[d-1]}</div></div>`;
+}
+function nodeHtml(k){
+  const L=LOCS[k],loc=G.loc[k],res=LOC_RES[k];
+  const cls=['node',L.k];
+  let dest=null;
+  if(V.pm&&V.pm.sel!=null){dest=V.pm.opts.find(o=>o.hi===V.pm.sel).dests.find(d=>d.loc===k);if(dest)cls.push('dest');else cls.push('dim')}
+  if(V.pl){if(V.pl.locs.includes(k))cls.push('dest');else cls.push('dim')}
+  if(V.pa&&V.pa.h.loc===k)cls.push('here');
+  if(V.curHero&&V.curHero.loc===k)cls.push('here');
+  const now=Date.now();
+  if(V.flash[k]>now)cls.push('flash');
+  if(V.shake[k]>now&&V.anim)cls.push('shake');
+  let body='';
+  if(res)body+=`<div class="pool">${RI[res]}<b>${loc.amt}</b><small>${L.k==='dam'?'needs 1💾':''}</small></div>`;
+  if(loc.game){
+    const t=loc.game[0];
+    body+=`<div class="game" title="Wild Game stack: only the top tile can be hunted">🦌 ${loc.game.length}${t?` · next: <b>End ${t.end+(G.fx.mut?1:0)}</b>`:' · empty'}</div>`;
+  }
+  if(L.k==='city'){
+    body+=`<div class="game">🔎 ${loc.search.length} tiles</div><div class="eqs">${loc.equip.map(t=>eqChip(t)).join('')}</div>`;
+  }
+  if(L.k==='cargo'){
+    body+=`<div class="spots">`+CARGO_SPOTS.map((s,i)=>{
+      const occ=G.players.flatMap(q=>q.heroes.filter(h=>h.loc==='cargo'&&h.state==='act'&&h.spot===i).map(()=>q.color.hex));
+      return `<div class="spot ${i===3?'hook':''}" title="${i===3?'Needs Grappling Hook':'Strength '+s.s}"><b>${s.s}</b>→${s.canned}🥫👤${occ.map(c=>`<i style="background:${c}"></i>`).join('')}</div>`;
+    }).join('')+`</div>`;
+  }
+  if(L.k==='base')body+=`<div class="game">🌿 Algae ${G.algae?'<b>ready</b>':'taken'}</div>`;
+  const heroes=G.players.flatMap(p=>p.heroes.map((h,hi)=>h.loc===k?heroTok(p,hi):'')).join('');
+  return `<div class="${cls.join(' ')}" data-a="loc" data-loc="${k}" style="left:${L.x}%;top:${L.y}%">${ART.map?'':art(ART_OF[k])}<div class="nh">${esc(L.n)}</div>${body}<div class="hrow">${heroes}</div>${dest&&dest.exo?'<div class="exo">Exoskeleton</div>':''}</div>`;
+}
+function drawBg(){
+  const b=$('#board'),svg=$('#bsvg');if(!b||!svg)return;
+  const W=b.clientWidth,H=b.clientHeight;if(!W||!H)return;
+  const X=p=>(p*W/100).toFixed(1),Y=p=>(p*H/100).toFixed(1);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const onMap=!!ART.map;
+  let s=onMap?'':`<defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#26301b"/><stop offset=".5" stop-color="#2a2a1a"/><stop offset="1" stop-color="#1b2216"/></linearGradient>
+  <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27546a"/><stop offset="1" stop-color="#17323f"/></linearGradient></defs>
+  <rect width="${W}" height="${H}" fill="url(#gl)"/>`;
+  // wasteland texture
+  if(!onMap)for(let i=0;i<34;i++){const x=(i*37%100),y=(i*53%100);s+=`<ellipse cx="${X(x)}" cy="${Y(y)}" rx="${(W*.03+(i%5)*5).toFixed(0)}" ry="${(H*.02+(i%4)*4).toFixed(0)}" fill="${i%3?'#2f3a22':'#3a3320'}" opacity=".35"/>`}
+  // river: from the north, widening into a bay with the Cargo Ship, to the south
+  if(!onMap)s+=`<path d="M${X(45)} 0 C${X(40)} ${Y(22)},${X(33)} ${Y(33)},${X(34)} ${Y(50)} C${X(35)} ${Y(64)},${X(43)} ${Y(66)},${X(45)} ${Y(100)} L${X(56)} ${Y(100)} C${X(57)} ${Y(68)},${X(66)} ${Y(62)},${X(66)} ${Y(48)} C${X(66)} ${Y(32)},${X(60)} ${Y(20)},${X(57)} 0 Z" fill="url(#gr)" opacity=".92"/>`;
+  if(!onMap)s+=`<path d="M${X(47)} ${Y(8)}q${X(-3)} ${Y(14)} ${X(-2)} ${Y(30)}M${X(54)} ${Y(10)}q${X(4)} ${Y(14)} ${X(3)} ${Y(30)}M${X(48)} ${Y(66)}q${X(1)} ${Y(14)} ${X(1)} ${Y(26)}" stroke="#9fd0e6" stroke-width="1.5" fill="none" opacity=".25"/>`;
+  // arrows between the 8 locations (single ring)
+  const br=b.getBoundingClientRect();
+  const R={};b.querySelectorAll('.node').forEach(n=>{const r=n.getBoundingClientRect();R[n.dataset.loc]={cx:r.left-br.left+r.width/2,cy:r.top-br.top+r.height/2,hw:r.width/2,hh:r.height/2}});
+  EDGES.forEach(([a,c])=>{
+    const A=R[a],B=R[c];if(!A||!B)return;
+    const dx=B.cx-A.cx,dy=B.cy-A.cy,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+    const ex=(r)=>Math.min(Math.abs(ux)>1e-6?r.hw/Math.abs(ux):1e9,Math.abs(uy)>1e-6?r.hh/Math.abs(uy):1e9);
+    const pad=5,t1=ex(A)+pad,t2=ex(B)+pad;
+    const x1=A.cx+ux*t1,y1=A.cy+uy*t1,x2=B.cx-ux*t2,y2=B.cy-uy*t2;
+    const L2=Math.hypot(x2-x1,y2-y1);if(L2<9)return;
+    const hl=Math.min(11,L2*.32),nx=-uy*5.5,ny=ux*5.5;
+    const head=(px,py,dx,dy)=>{const bx=px-dx*hl,by=py-dy*hl;return `<path class="arrowhead" d="M${px.toFixed(1)} ${py.toFixed(1)}L${(bx+nx).toFixed(1)} ${(by+ny).toFixed(1)}L${(bx-nx).toFixed(1)} ${(by-ny).toFixed(1)}z"/>`};
+    s+=`<path class="arrow" d="M${(x1+ux*hl*.8).toFixed(1)} ${(y1+uy*hl*.8).toFixed(1)}L${(x2-ux*hl*.8).toFixed(1)} ${(y2-uy*hl*.8).toFixed(1)}"/>`+head(x2,y2,ux,uy)+head(x1,y1,-ux,-uy);
+  });
+  svg.innerHTML=s;
+}
+function renderBoard(){
+  if(!G||!G.loc.forest)return;
+  const bd=$('#board');
+  bd.classList.toggle('map',!!ART.map);
+  bd.style.backgroundImage=ART.map?`url(${ART.map})`:'';
+  bd.style.aspectRatio=ART.map&&innerWidth>900?String(ART.mapRatio):'';
+  $('#board').innerHTML=`<svg id="bsvg"></svg>`+hubHtml()+Object.keys(LOCS).map(nodeHtml).join('');
+  drawBg();
+}
+if(window.ResizeObserver)new ResizeObserver(()=>{if(G&&G.loc&&G.loc.forest)drawBg()}).observe(document.getElementById('board'));
+function gauge(p){
+  let h='';
+  for(let v=3;v>=-11;v--){h+=`<i class="g ${v>0?'pos':v===0?'zero':'neg'} ${p.rad===v?'on':''}">${p.rad===v?'☢':v}</i>`}
+  return `<div class="gauge" title="Radioactivity: ${p.rad} (scores ${p.rad>=0?'+':''}${p.rad} SP)">${h}</div>`;
+}
+function airlock(p){
+  let h='';
+  for(let r=0;r<AIR_ROWS;r++){
+    let row='';
+    for(let c=0;c<AIR_ROW;c++){const i=r*AIR_ROW+c;row+=`<i class="sv ${i<p.air?'f':''}" style="--c:${p.color.hex}"></i>`}
+    h+=`<div class="arow">${row}<small>${p.air>r*AIR_ROW?'💧1':''}</small></div>`;
+  }
+  const absorb=p.air+(hasRoom(p,'sealdoor')?1:0);
+  return `<div class="airlock"><div class="al">Airlock <small>absorbs ${absorb} ☢ per night</small></div>${h}</div>`;
+}
+function roomCard(p,i,night){
+  const r=p.rooms[i],d=ROOMS[r.k];
+  const full=isFull(r);
+  const slots=Array.from({length:Math.max(d.cap,r.pop)},(_,j)=>`<i class="sv ${j<r.pop?'f':''}" style="--c:${p.color.hex}"></i>`).join('');
+  let ctl='';
+  if(night){
+    if(!r.built){ctl=`<button class="mini" data-a="build" data-i="${i}" ${nMat(p)>=buildCost(p)?'':'disabled'}>Build · ${buildCost(p)} Material${buildCost(p)>1?'s':''}</button>`}
+    else{
+      if(p.air>0&&r.pop<d.cap)ctl+=`<button class="mini" data-a="move" data-i="${i}" data-n="1">+1 from Airlock</button><button class="mini" data-a="move" data-i="${i}" data-n="9">Fill</button>`;
+      if(full&&!r.used&&NIGHT_ABILITY.includes(r.k)&&!(r.k==='barracks'&&r.pop>=8))ctl+=`<button class="mini go" data-a="ability" data-i="${i}">Use ability</button>`;
+    }
+  }
+  const state=!r.built?'unbuilt':full?'active':'built';
+  return `<div class="room ${state} ${r.used?'used':''}"><div class="rh"><b>${esc(d.n)}</b><span class="up" title="Supplies per night while occupied">🍽${d.up}</span></div>
+    <div class="rw">${esc(d.w)}${r.used?' · used':''}</div><div class="slots">${slots}</div>
+    <div class="rt">${esc(d.t)}</div>${ctl?`<div class="ctl">${ctl}</div>`:''}</div>`;
+}
+function shelterHtml(p,chg){
+  const night=V.night&&V.night.p===p;
+  const sc=scoreOf(p);
+  let h=`<div class="shead" style="--c:${p.color.hex}">${p.leader&&ART.leaders[p.leader.id]?portrait(p.leader.id,'por sm'):`<span class="dot big" style="background:${p.color.hex}"></span>`}<div><b>${esc(p.name)}</b>${p.human?'':' <small>(AI)</small>'}<div class="sub">${esc(p.leader?p.leader.n:'')}</div></div><div class="sp" title="Projected Survival Points">${sc.total}<small>SP</small></div></div>`;
+  h+=`<div class="res">${RES_ALL.map(r=>resChip(r,p.res[r],chg.has(r))).join('')}<span class="rc ${chg.has('sv')?'chg':''}" title="Survivors"><span>👤</span><b>${survivors(p)}</b></span></div>`;
+  h+=gauge(p);
+  if(night){
+    const mx=recruitMax(p);if(V.recN>mx)V.recN=mx;
+    h+=`<div class="recruit"><b>Recruit</b> <span class="muted">Supplies ${nSup(p)} · Airlock free ${AIR_MAX-p.air}</span><div class="stepper"><button data-a="recdn">−</button><span>${V.recN}</span><button data-a="recup">+</button><button class="mini go" data-a="recruit" ${V.recN?'':'disabled'}>Recruit ${V.recN||''}</button><button class="mini" data-a="recmax">Max</button></div></div>`;
+  }
+  h+=airlock(p);
+  h+=`<div class="rooms">${p.rooms.map((r,i)=>roomCard(p,i,night)).join('')}</div>`;
+  const broken=p.equip.map((e,i)=>({e,i})).filter(x=>!x.e.fixed),fixed=p.equip.filter(e=>e.fixed);
+  h+=`<div class="eqwrap"><div class="al">Equipment</div>`;
+  h+=broken.length?`<div class="eqline">${broken.map(x=>{
+    const q=repairQuote(p,x.e);
+    return `<div class="eqb">${eqChip(x.e.id,'broken')}${night?`<button class="mini" data-a="repair" data-i="${x.i}" ${canPay(p,q.cost)?'':'disabled'}>Repair ${costHtml(q.cost)}</button>`:`<span class="cc dim">broken · ${costHtml(q.cost)}</span>`}</div>`}).join('')}</div>`:'';
+  h+=fixed.length?`<div class="eqline">${fixed.map(e=>eqChip(e.id,e.used?'used':'ready')).join('')}</div>`:(broken.length?'':'<div class="muted">None yet.</div>');
+  h+=`</div>`;
+  if(p.events.length)h+=`<div class="eqwrap"><div class="al">Overcame</div><div class="eqline">${p.events.map(id=>`<button class="evc small" data-a="infoev" data-id="${id}"><b>${esc(EVENTS[id].n)}</b><span>+${EVENTS[id].sp} SP</span></button>`).join('')}</div></div>`;
+  const caught=Object.entries(p.caught).filter(([,n])=>n>0);
+  if(caught.length)h+=`<div class="muted small">Wild Game caught: ${caught.map(([e,n])=>`End ${e}×${n}`).join(', ')}</div>`;
+  h+=`<div class="muted small">Score now: events ${sc.events} · rooms ${sc.rooms} (${sc.fullRooms} full) · radiation ${sc.rad} · survivors ${sc.survivors} · equipment ${sc.equip}+${sc.pairs} pairs</div>`;
+  return h;
+}
+function renderSide(){
+  if(!G||!G.players.length)return;
+  if(V.view>=G.players.length)V.view=0;
+  const tabs=G.players.map((p,i)=>`<button class="tab ${i===V.view?'on':''}" style="--c:${p.color.hex}" data-a="view" data-i="${i}"><span class="dot" style="background:${p.color.hex}"></span>${esc(p.name)}<small>${scoreOf(p).total}</small></button>`).join('');
+  $('#tabs').innerHTML=tabs;
+  const vp=G.players[V.view];
+  const chg=new Set(),pv=V.prev[vp.id];
+  const snap=p=>{const o={};RES_ALL.forEach(r=>o[r]=p.res[r]);o.sv=survivors(p);return o};
+  if(pv)for(const k in pv)if(pv[k]!==snap(vp)[k])chg.add(k);
+  G.players.forEach(p=>V.prev[p.id]=snap(p));
+  $('#shelter').innerHTML=shelterHtml(vp,chg);
+}
+function renderAction(){
+  const el=$('#action');
+  if(V.pm){
+    const sel=V.pm.sel;
+    el.innerHTML=`<div class="ahead"><b style="color:${V.pm.p.color.hex}">${esc(V.pm.p.name)}</b> — ${sel==null?'tap one of your glowing Heroes':'tap a highlighted Location to move there'} <span class="muted">(1–2 steps along the arrows; you can't stop on your own Heroes)</span></div>`;
+    return;
+  }
+  if(V.pl){el.innerHTML=`<div class="ahead">${esc(V.pl.prompt)}</div>`;return}
+  if(V.pa){
+    const{p,h,acts}=V.pa;
+    el.innerHTML=`<div class="ahead"><b style="color:${p.color.hex}">${esc(p.name)}</b> · Strength ${h.str} Hero at <b>${esc(LOCS[h.loc].n)}</b> · <span class="ap">${h.ap} AP</span> left</div>
+      <div class="acts">${acts.map((a,i)=>`<button class="act" data-a="act" data-i="${i}"><b>${a.label}</b><small>${a.sub||''}</small></button>`).join('')}<button class="act end" data-a="act" data-i="done"><b>End this Hero's turn</b><small>Unused Action Points are lost</small></button></div>`;
+    return;
+  }
+  if(V.night){el.innerHTML=`<div class="ahead"><b style="color:${V.night.p.color.hex}">${esc(V.night.p.name)}</b> — manage your Shelter: recruit, move Survivors into Rooms, build, repair. Press <b>End turn</b> when done.</div>`;return}
+  const last=V.logs.slice(-4).map(l=>`<div class="tick ${l.cls||''}">${esc(l.msg)}</div>`).join('');
+  el.innerHTML=`<div class="ticker">${last||'<div class="tick">Welcome to the wasteland.</div>'}</div>`;
+}
+function renderLog(){
+  const el=$('#log');if(!el)return;
+  el.innerHTML=V.logs.slice(-120).map(l=>`<div class="ll ${l.cls||''}">${esc(l.msg)}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function renderAll(){
+  if(!G)return;
+  renderTop();renderBoard();renderSide();renderAction();renderTurn();
+  const night=G.phase==='night';
+  $('#app').classList.toggle('night',night);$('#sky').classList.toggle('on',night&&V.live);
+}
+
+/* ---------- effects ---------- */
+function anchor(target){
+  let el=null;
+  if(target&&target.loc)el=document.querySelector(`.node[data-loc="${target.loc}"]`);
+  else if(target&&target.p!=null)el=document.querySelector(`.tab[data-i="${target.p}"]`);
+  const r=el?el.getBoundingClientRect():$('#board').getBoundingClientRect();
+  return{x:r.left+r.width/2,y:r.top+(el?Math.min(r.height*.4,34):40),key:(target&&(target.loc||'p'+target.p))||'x'};
+}
+function popFx(target,text,kind){
+  if(!V.live)return;
+  const a=anchor(target);
+  const now=Date.now();
+  const arr=(V.pops[a.key]=(V.pops[a.key]||[]).filter(t=>now-t<1700));
+  const off=arr.length*28;arr.push(now);
+  const el=document.createElement('div');
+  el.className='pop '+(kind||'');
+  el.textContent=text;
+  el.style.left=Math.max(60,Math.min(innerWidth-60,a.x))+'px';
+  el.style.top=Math.max(8,a.y-off)+'px';
+  $('#fxlayer').appendChild(el);
+  setTimeout(()=>el.remove(),1950);
+  if(target&&target.loc&&V.anim){V.flash[target.loc]=now+800}
+  sfx({gain:'gain',hunt:'hunt',hit:'hit',loss:'loss',good:'good',surv:'surv','surv-':'survLoss',rad:'rad',feed:'feed',build:'build'}[kind]||'select');
+}
+async function ghostMove(p,h,from,to){
+  const hi=p.heroes.indexOf(h);
+  const src=document.querySelector(`.hero[data-p="${p.id}"][data-hi="${hi}"]`);
+  const dstNode=document.querySelector(`.node[data-loc="${to}"]`);
+  sfx('move');
+  if(!V.anim||!src||!dstNode){await wait(250*scale());return}
+  const a=src.getBoundingClientRect();
+  const center=k=>{const n=document.querySelector(`.node[data-loc="${k}"] .hrow`)||document.querySelector(`.node[data-loc="${k}"]`);const r=n.getBoundingClientRect();return{x:r.left+Math.min(r.width,60)/2+8,y:r.top+r.height/2}};
+  const path=[];
+  if(!ADJ[from].includes(to)){const mid=ADJ[from].find(m=>ADJ[m].includes(to));if(mid)path.push(center(mid))}
+  path.push(center(to));
+  const g=src.cloneNode(true);g.classList.add('ghost');g.removeAttribute('data-a');g.style.left=a.left+'px';g.style.top=a.top+'px';
+  g.style.width=a.width+'px';g.style.height=a.height+'px';
+  document.body.appendChild(g);src.style.visibility='hidden';
+  const frames=[{transform:'translate(0,0) scale(1.2)'}];
+  path.forEach(c=>frames.push({transform:`translate(${c.x-a.left-a.width/2}px,${c.y-a.top-a.height/2}px) scale(${frames.length===path.length?1.2:1.35})`}));
+  const dur=Math.max(180,620*scale())*path.length;
+  try{const an=g.animate(frames,{duration:dur,easing:'ease-in-out',fill:'forwards'});await an.finished}catch(e){await wait(dur)}
+  g.remove();
+}
+
+/* ---------- UI hooks used by the engine ---------- */
+window.UI={
+  log(msg,cls){
+    V.logs.push({msg,cls});if(V.logs.length>400)V.logs.shift();V.cap=msg;renderLog();
+    if(!V.pm&&!V.pa&&!V.pl&&!V.night)renderAction();
+    renderTurn();
+  },
+  render(){renderAll()},
+  sleep(ms){return wait(ms*V.speed)},
+  pop(t,x,k){popFx(t,x,k)},
+  async banner(title,sub,kind){
+    Sound.setMood(kind==='night'?'night':'day');
+    if(kind==='night')coach('night','Night falls','At night events are resolved, everyone <b>feeds their Survivors</b> and takes <b>radiation</b>, then you manage your Shelter: recruit, fill Rooms, build and repair.');
+    if(kind==='dawn')coach('dawn','A new day','Every Dawn the Locations refill with Resources and the day\'s Convoy Event is revealed. Then each player moves their 4 Heroes in turn.');
+    sfx(kind==='night'?'night':'dawn');
+    const el=$('#banner');
+    if(!V.anim){await wait(450*scale());return}
+    el.className=kind||'';el.innerHTML=`<div class="bb"><h1>${esc(title)}</h1><p>${esc(sub||'')}</p></div>`;
+    void el.offsetWidth;el.classList.add('on');
+    await wait(2400*Math.max(.35,scale()*.8));
+    el.className='';
+  },
+  async turn(p,phase){
+    V.turn={p,phase};V.curHero=null;
+    if(!p.human&&V.follow)V.view=p.id;
+    if(!p.human)coach('ai','Opponents','When the top bar says <b>(AI) is playing</b>, an opponent is taking their turn. Watch the board: their Hero flies to the new Location, floating labels show what they gain, and the bar below describes each step. You can change the speed in the pause menu.');
+    renderAll();sfx('turn');
+    await wait((p.human?150:550)*scale());
+  },
+  async turnEnd(p,phase){
+    V.curHero=null;
+    if(!p.human){popFx(P_ui(p),'✓ turn ended','good');renderAll();await wait(300*scale())}
+  },
+  async move(p,h,from,to){
+    V.view=V.follow||p.human?p.id:V.view;
+    V.curHero=h;
+    await ghostMove(p,h,from,to);
+  },
+  async pressure(p,q,loc,pts){
+    V.shake[loc]=Date.now()+900;
+    coach('press','Pressure','Arriving where <i>weaker activated</i> Heroes stand lets you <b>press</b> them: they hand over 1 Supply/Material per point of Strength difference — unless they spend 💥 Munitions to resist.');
+    popFx(L_ui(loc),`⚔ ${p.name} presses ${q.name}`,'hit');
+    renderAll();
+    await wait(1000*scale());
+  },
+  async focus(p){
+    V.turn={p,phase:'night'};if(V.follow||p.human)V.view=p.id;renderAll();await wait(250*scale());
+  },
+  async chooseOne(title,options,text){
+    if(/Leader/.test(title))coach('leader','Choose a Leader','Your Leader decides your <b>starting Locations</b> (where your 4 Heroes begin), your starting Resources and one broken piece of Equipment. The oldest Leader plays first.');
+    return openModal((box,done)=>{head(box,esc(title),text?esc(text):'');
+      const list=document.createElement('div');list.className='olist';
+      options.forEach(o=>{const b=btn((ART.leaders[o.id]?portrait(o.id,'por'):'')+esc(o.label),'opt',()=>{sfx('select');done(o.id)},o.sub?esc(o.sub):'');if(ART.leaders[o.id])b.classList.add('haspor');list.appendChild(b)});
+      box.appendChild(list)});
+  },
+  async chooseMany(title,options,count,text){
+    if(/Room/.test(title))coach('rooms','Advanced Rooms','Rooms hold Survivors at night. A Room only works when <b>every</b> space is filled, and each occupied Room costs upkeep in Supplies. Bigger sets of full Rooms score many more points (1/2/4/7/11/17).');
+    return openModal((box,done)=>{head(box,esc(title),text?esc(text):`Pick exactly ${count}.`);
+      const sel=new Set(),list=document.createElement('div');list.className='olist';
+      const ok=btn('Confirm','pri',()=>done([...sel]));ok.disabled=true;
+      options.forEach(o=>{const b=btn(esc(o.label),'opt',()=>{
+        if(sel.has(o.id)){sel.delete(o.id);b.classList.remove('on')}else if(sel.size<count){sel.add(o.id);b.classList.add('on')}
+        sfx('select');ok.disabled=sel.size!==count;ok.querySelector('.bl').textContent=`Confirm (${sel.size}/${count})`},o.sub?esc(o.sub):'');list.appendChild(b)});
+      box.appendChild(list);box.appendChild(ok);ok.querySelector('.bl').textContent=`Confirm (0/${count})`});
+  },
+  async amount(o){
+    return openModal((box,done)=>{head(box,esc(o.title),esc(o.text||''));
+      let n=o.def!=null?o.def:o.min;
+      const row=document.createElement('div');row.className='stepper big';
+      const out=document.createElement('span');out.textContent=n;
+      const dn=document.createElement('button');dn.textContent='−';dn.onclick=()=>{n=Math.max(o.min,n-1);out.textContent=n};
+      const up=document.createElement('button');up.textContent='+';up.onclick=()=>{n=Math.min(o.max,n+1);out.textContent=n};
+      row.append(dn,out,up);box.appendChild(row);
+      box.appendChild(btn('Confirm','pri',()=>done(n)))});
+  },
+  async payDialog(o){
+    return openModal((box,done)=>{head(box,esc(o.title),`Choose ${o.n} token${o.n>1?'s':''} to pay.`);
+      const pay={};o.allowed.forEach(r=>pay[r]=0);
+      const rows=document.createElement('div');rows.className='payrows';
+      const ok=btn('Confirm','pri',()=>done(pay));
+      const upd=()=>{const s=Object.values(pay).reduce((a,b)=>a+b,0);ok.disabled=s!==o.n;ok.querySelector('.bl').textContent=`Confirm (${s}/${o.n})`;o.allowed.forEach(r=>{rows.querySelector(`[data-r="${r}"] span`).textContent=pay[r]})};
+      o.allowed.forEach(r=>{
+        const row=document.createElement('div');row.className='stepper';row.dataset.r=r;
+        row.innerHTML=`<em>${RI[r]} ${RN[r]} <small>(have ${o.p.res[r]})</small></em>`;
+        const dn=document.createElement('button');dn.textContent='−';dn.onclick=()=>{pay[r]=Math.max(0,pay[r]-1);upd()};
+        const sp=document.createElement('span');sp.textContent='0';
+        const up=document.createElement('button');up.textContent='+';up.onclick=()=>{const s=Object.values(pay).reduce((a,b)=>a+b,0);if(pay[r]<o.p.res[r]&&s<o.n){pay[r]++;upd()}};
+        row.append(dn,sp,up);rows.appendChild(row)});
+      box.appendChild(rows);box.appendChild(ok);upd()});
+  },
+  pickMove(p,opts){
+    V.view=p.id;V.turn={p,phase:'day'};V.curHero=null;
+    coach('move1','Move a Hero','It is your turn! Tap one of your <b>glowing Heroes</b> (the number is its Strength = Action Points). Hollow tokens have not moved yet this day.');
+    sfx('turn');
+    return new Promise(res=>{V.pm={p,opts,sel:null,res};renderAll()});
+  },
+  pickLocation(p,locs,prompt){
+    V.view=p.id;
+    coach('place','Place your Heroes','The game starts by placing your 4 Heroes (Strength 5, 4, 3, 3), one at a time, on the <b>highlighted Locations</b> — your Leader\'s starting spots. Pick where you want to gather first.');
+    return new Promise(res=>{V.pl={p,locs,prompt,res};renderAll()});
+  },
+  pickAction(p,h,acts){
+    V.view=p.id;
+    coach('act','Actions','Your Hero has Action Points (AP) equal to its Strength. <b>Scavenge</b> the Location\'s resources, <b>Hunt</b> wild game, <b>Search</b> city piles or <b>Salvage</b> Equipment. Unused AP are lost, so spend them — or press <b>End Hero\'s turn</b>.');
+    return new Promise(res=>{V.pa={p,h,acts,res};renderAll()});
+  },
+  async shelter(p){
+    V.view=p.id;V.night={p};V.recN=0;V.turn={p,phase:'night'};
+    coach('shelter','Your Shelter','<b>Recruit</b> Survivors with Supplies (they wait in the Airlock), then <b>move them into Rooms</b>. Full Rooms score and unlock abilities, but Survivors in Rooms can never leave. You can also <b>Build</b> Rooms with Materials and <b>Repair</b> Equipment. Press <b>End turn</b> when finished.');
+    await new Promise(res=>{V.night.res=res;renderAll()});
+    V.night=null;renderAll();
+  },
+  async handoff(p){
+    return openModal((box,done)=>{head(box,`Pass the device to <span style="color:${p.color.hex}">${esc(p.name)}</span>`,'Everyone else look away — only the next player needs the screen.');box.appendChild(btn("I'm ready",'pri',()=>done()))});
+  },
+  async showEvent(id){
+    const e=EVENTS[id];
+    coach('event','Convoy Events','Each day a new Event is revealed. Its harmful effect repeats every day until someone <b>Overcomes</b> it at night by paying its cost — which also scores Survival Points.');
+    return openModal((box,done)=>{head(box,`Event: ${esc(e.n)}`,esc(e.t));
+      const d=document.createElement('div');d.className='mtext';d.innerHTML=`Overcome during the Night for ${costHtml(e.cost)} → <b>+${e.sp} SP</b>. Until then its effect repeats every day.`;box.appendChild(d);
+      box.appendChild(btn('Continue','pri',()=>done()))});
+  },
+  async nightReport(p){
+    if(!p.report.length)return;
+    return openModal((box,done)=>{head(box,`${esc(p.name)} — the night so far`);
+      const d=document.createElement('div');d.className='mtext';d.innerHTML=p.report.map(x=>`<div>• ${esc(x)}</div>`).join('');box.appendChild(d);
+      box.appendChild(btn('Continue','pri',()=>done()))});
+  },
+  async showPile(city,tiles){
+    const nm={water:'💧 Water',canned:'🥫 Canned',wood:'🪵 Wood',metal:'🔩 Metal',chip:'💾 Chip',mun:'💥 Munitions',algae:'🌿 Algae',empty:'∅ Empty'};
+    return openModal((box,done)=>{head(box,`${esc(LOCS[city].n)} — Search pile`,'Top of the pile first. Keep it secret!');
+      const d=document.createElement('div');d.className='pile';d.innerHTML=tiles.map(t=>`<span>${nm[t]}</span>`).join('');box.appendChild(d);
+      box.appendChild(btn('Close','pri',()=>done()))});
+  },
+  async final(rows){
+    hideCoach();Sound.setMood('menu');
+    const w=rows[0];
+    sfx(!G.humans||w.p.human?'win':'lose');
+    return openModal((box,done)=>{
+      head(box,`<span style="color:${w.p.color.hex}">${esc(w.p.name)}</span> escapes with Convoy!`,`Final scores after 6 days.`);
+      const t=document.createElement('table');t.className='score';
+      t.innerHTML=`<tr><th></th><th>Events</th><th>Rooms</th><th>☢</th><th>👤</th><th>Equip</th><th>Pairs</th><th>Total</th></tr>`+rows.map((r,i)=>`<tr class="${i===0?'win':''}"><td><span class="dot" style="background:${r.p.color.hex}"></span>${esc(r.p.name)}</td><td>${r.s.events}</td><td>${r.s.rooms}<small>(${r.s.fullRooms})</small></td><td>${r.s.rad}</td><td>${r.s.survivors}</td><td>${r.s.equip}</td><td>${r.s.pairs}</td><td><b>${r.s.total}</b></td></tr>`).join('');
+      box.appendChild(t);
+      const n=document.createElement('p');n.className='mtext muted';n.textContent='Ties: most Supplies, then most Materials + Munitions.';box.appendChild(n);
+      const row=document.createElement('div');row.className='mrow';
+      row.appendChild(btn('Look at the board','',()=>done()));
+      row.appendChild(btn('Main menu','',()=>{done();showMenu()}));
+      row.appendChild(btn('Play again','pri',()=>{done();newGameFlow()}));
+      box.appendChild(row)},{wide:true});
+  }
+};
+const P_ui=p=>({p:p.id}),L_ui=l=>({loc:l});
+
+/* ---------- click handling ---------- */
+const handlers={
+  view(t){V.view=+t.dataset.i;const p=G.players[V.view];V.prev[p.id]=null;renderSide()},
+  hero(t){
+    const p=G.players[+t.dataset.p],hi=+t.dataset.hi;
+    if(V.pm&&V.pm.p===p&&p.heroes[hi].state==='idle'&&V.pm.opts.some(o=>o.hi===hi)){
+      V.pm.sel=V.pm.sel===hi?null:hi;sfx('select');renderAll();
+      if(V.pm.sel!=null)coach('move2','Choose a destination','The <b>highlighted Locations</b> are where this Hero can go: 1 or 2 steps along the glowing arrows. You may not stop on a Location holding another Hero of your colour.');
+      return false}
+    return handlers.loc({dataset:{loc:p.heroes[hi].loc}});
+  },
+  loc(t){
+    const k=t.dataset.loc;
+    if(V.pm&&V.pm.sel!=null){
+      const o=V.pm.opts.find(o=>o.hi===V.pm.sel);
+      if(o&&o.dests.some(d=>d.loc===k)){const r=V.pm.res;const ch={hi:V.pm.sel,loc:k};V.pm=null;hideCoach();r(ch);return}
+    }
+    if(V.pl&&V.pl.locs.includes(k)){const r=V.pl.res;V.pl=null;hideCoach();r(k)}
+  },
+  act(t){
+    if(!V.pa)return;
+    const r=V.pa.res,acts=V.pa.acts;
+    const a=t.dataset.i==='done'?{id:'done'}:acts[+t.dataset.i];
+    V.pa=null;r(a);
+  },
+  endturn(){
+    if(V.pa){const r=V.pa.res;V.pa=null;r({id:'done'})}
+    else if(V.night){const r=V.night.res;if(r)r()}
+  },
+  infoeq(t){const e=EQ[t.dataset.id];infoModal(esc(e.n),`<p>${esc(e.t)}</p><p>Repair cost: ${costHtml(e.cost)}</p><p>Pair symbol <span style="color:${SYM_COL[e.sym]}">${SYMS[e.sym]}</span> (${e.side==='L'?'left':'right'} half): repaired matching halves score +1 SP.</p>`)},
+  infoev(t){const e=EVENTS[t.dataset.id];infoModal(esc(e.n),`<p>${esc(e.t)}</p><p>Overcome: ${costHtml(e.cost)} → +${e.sp} SP</p>`)},
+  recdn(){V.recN=Math.max(0,V.recN-1);renderAll()},
+  recup(){V.recN=Math.min(recruitMax(V.night.p),V.recN+1);renderAll()},
+  recmax(){V.recN=recruitMax(V.night.p);renderAll()},
+  recruit(){recruit(V.night.p,V.recN);V.recN=0;renderAll()},
+  move(t){moveToRoom(V.night.p,+t.dataset.i,+t.dataset.n);sfx('select');renderAll()},
+  async build(t){if(V.busy)return;V.busy=true;try{await buildRoom(V.night.p,+t.dataset.i)}finally{V.busy=false}renderAll()},
+  repair(t){repairEq(V.night.p,+t.dataset.i);renderAll()},
+  async ability(t){if(V.busy)return;V.busy=true;try{await useAbility(V.night.p,+t.dataset.i)}finally{V.busy=false}renderAll()},
+  tmusic(){Sound.unlock();Sound.setMusic(!Sound.state.music);renderCluster()},
+  tsfx(){Sound.unlock();Sound.setSfx(!Sound.state.sfx);renderCluster();sfx('select')},
+  pause(){if(V.live)setPaused(true)},
+  coachx(){hideCoach()}
+};
+const ALWAYS=['tmusic','tsfx','pause','coachx'];
+document.addEventListener('click',e=>{
+  const bt=e.target.closest('button');if(bt&&!bt.disabled&&!bt.closest('#menu'))sfx('click');
+  const t=e.target.closest('[data-a]');if(!t)return;
+  if(V.paused)return;
+  if(V.modalOpen&&!t.closest('#modal')&&!ALWAYS.includes(t.dataset.a))return;
+  const f=handlers[t.dataset.a];if(!f)return;
+  const r=f(t);
+  if(r===false)e.stopPropagation();
+});
+document.addEventListener('pointerdown',function once(){Sound.unlock();$('#menuhint')&&($('#menuhint').textContent='');},{passive:true});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if($('#pausem').classList.contains('on')){closePanel();return}
+    if(V.live&&!V.modalOpen)setPaused(true);
+  }
+});
+
+/* ---------- rules text ---------- */
+const RULES_HTML=`<p><b>Goal.</b> Survive 6 days and finish with the most <b>Survival Points (SP)</b>.</p>
+<p><b>Each day:</b> <b>Dawn</b> (Locations refill, a Convoy Event is revealed) → <b>Day</b> (each player in turn moves a Hero, then it acts) → <b>Night</b> (events, feeding, radiation, recruiting, building, repairs).</p>
+<p><b>Map.</b> The 8 Locations form one ring linked by two-way green arrows. A Hero moves <b>1–2 steps</b> along the arrows and cannot stop on a Location holding another Hero of its colour.</p>
+<p><b>Heroes</b> have Strength 5/4/3/3 = Action Points (AP). Arriving where weaker <i>activated</i> Heroes stand lets you apply <b>Pressure</b>: they hand over 1 Supply/Material per point of Strength difference — or spend 💥 Munitions to block it.</p>
+<p><b>Night:</b> pay Supplies (🍖💧🥫) for every occupied Room and 💧 for each used Airlock row, or Survivors starve. Airlock Survivors absorb radiation. Rooms only work when <i>every</i> space is filled; Survivors in Rooms can never leave.</p>
+<p><b>Score:</b> Overcome Events + fully populated Rooms (1→0, 2→1, 3→2, 4→4, 5→7, 6→11, 7→17) + radiation level + Survivors + repaired Equipment (+1 per matching symbol pair).</p>
+<p class="muted">Ties: most Supplies, then most Materials + Munitions.</p>`;
+function showRules(){
+  return openModal((box,done)=>{head(box,'How a game works');
+    const d=document.createElement('div');d.className='mtext';d.innerHTML=RULES_HTML;
+    box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))},{wide:true});
+}
+
+/* ---------- settings widgets ---------- */
+function settingsInto(box){
+  const row=(label,ctl)=>{const d=document.createElement('div');d.className='setrow';d.innerHTML=`<span>${label}</span>`;d.appendChild(ctl);box.appendChild(d)};
+  const sw=(on,fn)=>{const b=document.createElement('button');b.className='sw'+(on?' on':'');b.setAttribute('role','switch');b.onclick=()=>{on=!on;b.classList.toggle('on',on);fn(on);renderCluster();sfx('select')};return b};
+  const rg=(v,fn)=>{const i=document.createElement('input');i.type='range';i.min=0;i.max=100;i.value=Math.round(v*100);i.oninput=()=>fn(i.value/100);i.onchange=()=>sfx('select');return i};
+  const seg=(opts,cur,fn)=>{const d=document.createElement('div');d.className='segb';opts.forEach(([l,v])=>{const b=document.createElement('button');b.textContent=l;if(v===cur)b.className='on';b.onclick=()=>{fn(v);d.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');sfx('select')};d.appendChild(b)});return d};
+  const st=Sound.state;
+  row('🎵 Music',sw(st.music,v=>{Sound.unlock();Sound.setMusic(v)}));
+  row('Music volume',rg(st.mv,v=>Sound.setMusicVol(v)));
+  row('🔊 Sound effects',sw(st.sfx,v=>{Sound.unlock();Sound.setSfx(v)}));
+  row('Effects volume',rg(st.sv,v=>Sound.setSfxVol(v)));
+  row('Opponent speed',seg([['Slow',4],['Normal',2.2],['Fast',1.1],['Turbo',.3]],V.speed,v=>{V.speed=v;saveSet()}));
+  row('Animations',sw(V.anim,v=>{V.anim=v;saveSet()}));
+  row('Follow opponents (show their Shelter)',sw(V.follow,v=>{V.follow=v;saveSet()}));
+  const ab=document.createElement('button');ab.className='mini go';ab.textContent='Custom artwork…';ab.onclick=()=>panel('art');row('Your own map &amp; Leader pictures',ab);
+}
+
+/* ---------- pause / panels ---------- */
+function setPaused(on){
+  if(!V.live)return;
+  if(on){V.paused=true;V.pctx='pause';panel('pause')}
+  else{V.paused=false;$('#pausem').classList.remove('on');const r=V.resume;V.resume=[];r.forEach(f=>f())}
+}
+function closePanel(){
+  if(V.pctx==='pause')setPaused(false);else $('#pausem').classList.remove('on');
+  sfx('close');
+}
+function panel(view,arg){
+  if(view!=='confirm'&&arg)V.pctx=arg;
+  const root=$('#pausem'),box=document.createElement('div');box.className='mbox';
+  root.innerHTML='';root.appendChild(box);root.classList.add('on');
+  const back=()=>V.pctx==='pause'?panel('pause'):closePanel();
+  if(view==='pause'){
+    head(box,'Paused',V.tut?'Tutorial game':'The wasteland waits for you.');
+    box.appendChild(btn('Resume','pri',()=>closePanel()));
+    box.appendChild(btn('Settings','',()=>panel('settings')));
+    box.appendChild(btn('How to play','',()=>panel('rules')));
+    box.appendChild(btn('Tutorial primer','',()=>panel('slides')));
+    box.appendChild(btn('Restart game','',()=>panel('confirm','restart')));
+    box.appendChild(btn('Main menu','',()=>panel('confirm','menu')));
+  }else if(view==='settings'){
+    head(box,'Settings');settingsInto(box);box.appendChild(btn('Back','pri',back));
+  }else if(view==='rules'){
+    head(box,'How a game works');const d=document.createElement('div');d.className='mtext';d.innerHTML=RULES_HTML;box.appendChild(d);box.appendChild(btn('Back','pri',back));
+  }else if(view==='slides'){
+    slidesInto(box,false,go=>{if(go)panel('confirm','tutorial');else back()});
+  }else if(view==='art'){
+    artPanel(box,back);
+  }else if(view==='about'){
+    head(box,'About');const d=document.createElement('div');d.className='mtext';
+    d.innerHTML=`<p><b>Outlive</b> — digital prototype ${VERSION}.</p><p>An unofficial fan-made adaptation of the Outlive board game for solo and hot-seat play. Not affiliated with or endorsed by the publisher. All artwork, music and sounds in this version are original and generated in your browser.</p>`;
+    box.appendChild(d);box.appendChild(btn('Back','pri',back));
+  }else if(view==='confirm'){
+    const what=arg;
+    head(box,what==='restart'?'Restart this game?':what==='tutorial'?'Start the tutorial?':'Return to the main menu?','Your current game will be abandoned.');
+    box.appendChild(btn('Yes','pri',()=>{
+      $('#pausem').classList.remove('on');
+      if(what==='restart'){V.paused=false;launch(V.cfg,{tut:V.tut,seed:V.tut?TUT_SEED:undefined})}
+      else if(what==='tutorial'){V.paused=false;launch({players:[{name:'You',human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED})}
+      else{V.paused=false;showMenu()}
+    }));
+    box.appendChild(btn('Cancel','',()=>panel('pause')));
+  }
+}
+
+function artPanel(box,back){
+  box.classList.add('wide');
+  const draw=()=>{
+    box.innerHTML='';head(box,'Custom artwork','Use your own pictures from the board game (e.g. photos or scans of your copy). They are stored only on this device, in this browser, and are never uploaded anywhere.');
+    const row=(label,has,onPick,onClear,extra)=>{const d=document.createElement('div');d.className='artrow';
+      d.innerHTML=`<div class="al2">${extra||''}<span>${label}</span></div>`;
+      const b=document.createElement('button');b.className='mini go';b.textContent=has?'Replace':'Choose image';
+      b.onclick=async()=>{const f=await pickFile();if(!f)return;b.textContent='Loading…';try{await onPick(f)}catch(e){}draw()};d.appendChild(b);
+      if(has){const c=document.createElement('button');c.className='mini';c.textContent='Remove';c.onclick=async()=>{await onClear();draw()};d.appendChild(c)}
+      box.appendChild(d)};
+    row('Board map (the whole map picture)',!!ART.map,setMap,clearMap,ART.map?`<img class="por map" src="${ART.map}" alt="">`:'');
+    const h=document.createElement('h3');h.textContent='Leaders';h.style.margin='14px 0 4px';box.appendChild(h);
+    const hp=document.createElement('p');hp.className='mtext muted';hp.textContent='Give each Leader the name and portrait from your card. Names are saved too.';box.appendChild(hp);
+    LEADERS.forEach(l=>{
+      const d=document.createElement('div');d.className='artrow';
+      d.innerHTML=`<div class="al2">${portrait(l.id,'por sm')||'<span class="por sm ph">?</span>'}<input value="${esc(l.n)}" maxlength="24" aria-label="Leader name"></div>`;
+      d.querySelector('input').onchange=async e=>{const v=e.target.value.trim()||l.n;l.n=v;ART.names[l.id]=v;await kvSet('name:'+l.id,v)};
+      const b=document.createElement('button');b.className='mini go';b.textContent=ART.leaders[l.id]?'Replace':'Portrait';
+      b.onclick=async()=>{const f=await pickFile();if(!f)return;try{await setLeaderImg(l.id,f)}catch(e){}draw()};d.appendChild(b);
+      if(ART.leaders[l.id]){const c=document.createElement('button');c.className='mini';c.textContent='Remove';c.onclick=async()=>{await clearLeaderImg(l.id);draw()};d.appendChild(c)}
+      box.appendChild(d)});
+    box.appendChild(btn('Back','pri',()=>{box.classList.remove('wide');back()}));
+  };
+  draw();
+}
+
+/* ---------- tutorial primer ---------- */
+function ringSvg(){
+  const pts={forest:[20,18],dam:[90,12],mb:[160,18],bc:[20,60],sp:[160,60],fair:[20,102],cargo:[90,108],mine:[160,102]};
+  const ring=['forest','dam','mb','sp','mine','cargo','fair','bc'];
+  let s=`<svg viewBox="0 0 180 120" width="260" aria-label="Eight Locations connected in a ring of arrows">`;
+  ring.forEach((a,i)=>{const b=ring[(i+1)%8],A=pts[a],B=pts[b];const dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy),ux=dx/l,uy=dy/l;
+    const x1=A[0]+ux*13,y1=A[1]+uy*13,x2=B[0]-ux*15,y2=B[1]-uy*15;
+    s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#c9e86a" stroke-width="1.6"/><path d="M${x2} ${y2}l${-ux*5-uy*3} ${-uy*5+ux*3}l${uy*6} ${-ux*6}z" fill="#c9e86a"/><path d="M${x1} ${y1}l${ux*5-uy*3} ${uy*5+ux*3}l${uy*6} ${-ux*6}z" fill="#c9e86a"/>`});
+  ring.forEach(k=>{const p=pts[k];s+=`<circle cx="${p[0]}" cy="${p[1]}" r="11" fill="#1a1f17" stroke="#6f8f4a"/><text x="${p[0]}" y="${p[1]+3}" font-size="7" fill="#e8e4d9" text-anchor="middle">${LOCS[k].n.split(' ').map(w=>w[0]).join('')}</text>`});
+  s+=`<circle cx="90" cy="60" r="16" fill="#27546a" opacity=".6"/></svg>`;
+  return s;
+}
+const SLIDES=[
+  {t:'Welcome to the wasteland',viz:'☢️🏚️🚢',h:'The world ended. In <b>6 days</b> the Convoy arrives to rescue the Shelters that are still standing. You lead a Tribe of survivors — whoever has the most <b>Survival Points</b> when it arrives wins.'},
+  {t:'Day, night, day…',viz:'🌅 → ☀️ → 🌙',h:'<b>Dawn:</b> Locations refill and a Convoy Event appears.<br><b>Day:</b> players take turns moving Heroes and gathering.<br><b>Night:</b> feed survivors, endure radiation, recruit, build and repair.'},
+  {t:'The map is a ring',viz:ringSvg(),h:'The 8 Locations are linked in one ring by two-way green arrows. Each Hero moves <b>1 or 2 steps</b> along the arrows. You have 4 Heroes with Strength <b>5, 4, 3, 3</b>. Tap a glowing Hero, then a highlighted Location.'},
+  {t:'Acting & Pressure',viz:'🪵 💧 🔩 🦌 🔎',h:'After moving, a Hero has <b>Action Points = Strength</b>. Spend them to scavenge, hunt, search cities or salvage equipment. If you arrive next to <i>weaker activated</i> Heroes you may <b>press</b> them: they must give you resources (or spend 💥 Munitions).'},
+  {t:'Surviving the night',viz:'🍖💧🥫 → 👤',h:'Every night each Room that holds Survivors costs <b>Supplies</b>. Radiation grows each day; Survivors waiting in your <b>Airlock</b> absorb it. Overcome Events by paying their cost to remove their curse and earn points.'},
+  {t:'Your Shelter',viz:'🏠 🚪 🛠️',h:'<b>Recruit</b> Survivors into the Airlock, then <b>move them into Rooms</b>. A Room works only when every space is full — and Survivors in Rooms can never leave. <b>Build</b> Rooms with Materials, <b>repair</b> broken Equipment for bonuses.'},
+  {t:'Scoring',viz:'⭐ Events · Rooms · ☢ · 👤 · 🔧',h:'Points come from Overcome Events, <b>fully populated Rooms</b> (1→0, 2→1, 3→2, 4→4, 5→7, 6→11, 7→17), radiation level, Survivors and repaired Equipment (+1 per matching pair).'},
+  {t:'Ready? Play a guided game',viz:'🎮',h:'The tutorial game is a short real match against one opponent. Hints appear at the bottom of the screen as things happen — dismiss them with “Got it”.',last:true}
+];
+function slidesInto(box,fromMenu,onClose){
+  let i=0;
+  const draw=()=>{
+    const s=SLIDES[i];box.innerHTML='';
+    const d=document.createElement('div');d.className='slide';
+    d.innerHTML=`<h2>${esc(s.t)}</h2><div class="viz">${s.viz}</div><p class="mtext">${s.h}</p><div class="dots">${SLIDES.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div>`;
+    box.appendChild(d);
+    const row=document.createElement('div');row.className='mrow';
+    if(i>0)row.appendChild(btn('Back','',()=>{i--;draw()}));
+    if(!s.last)row.appendChild(btn('Next','pri',()=>{i++;draw()}));
+    else row.appendChild(btn('Play tutorial game','pri',()=>{onClose(true)}));
+    box.appendChild(row);
+    box.appendChild(btn(s.last?'Not now':'Skip','',()=>onClose(false)));
+  };
+  draw();
+}
+const TUT_SEED=20261;
+async function tutorialFlow(){
+  const go=await openModal((box,done)=>slidesInto(box,true,done),{wide:true});
+  if(go)launch({players:[{name:'You',human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED});
+}
+
+/* ---------- menu + game flow ---------- */
+function menuScene(){
+  let s=`<svg class="scene" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>
+  <radialGradient id="sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb06a"/><stop offset=".35" stop-color="#e0642c" stop-opacity=".8"/><stop offset="1" stop-color="#e0642c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0e18"/><stop offset=".6" stop-color="#3b2118"/><stop offset="1" stop-color="#7a3a1c"/></linearGradient></defs>
+  <rect width="1200" height="700" fill="url(#sky2)"/><circle cx="840" cy="470" r="260" fill="url(#sun)"/><circle cx="840" cy="470" r="70" fill="#ffc07a" opacity=".85"/>`;
+  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  for(let i=0;i<60;i++)s+=`<circle cx="${(rnd()*1200).toFixed(0)}" cy="${(rnd()*300).toFixed(0)}" r="${(rnd()*1.3+.3).toFixed(1)}" fill="#fff" opacity="${(rnd()*.6+.2).toFixed(2)}"/>`;
+  const layer=(base,fill,op,minh,maxh,minw,maxw)=>{let x=-20,g=`<g fill="${fill}" opacity="${op}">`;while(x<1240){const w=minw+rnd()*(maxw-minw),h=minh+rnd()*(maxh-minh);const cut=rnd()<.5;g+=cut?`<path d="M${x.toFixed(0)} ${base}V${(base-h).toFixed(0)}l${(w*.4).toFixed(0)} ${(rnd()*18).toFixed(0)}l${(w*.3).toFixed(0)} ${-(rnd()*10).toFixed(0)}l${(w*.3).toFixed(0)} ${(rnd()*30).toFixed(0)}V${base}z"/>`:`<rect x="${x.toFixed(0)}" y="${(base-h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`;x+=w+rnd()*8}return g+'</g>'};
+  s+=layer(560,'#4a2a1e',.55,60,220,30,70)+layer(620,'#2a1812',.9,80,300,36,90)+layer(700,'#0d0907',1,30,150,50,120);
+  s+=`<g stroke="#0d0907" stroke-width="3" fill="none"><circle cx="200" cy="560" r="80"/><path d="M200 480v160M120 560h160M143 503l114 114M257 503L143 617"/></g>`;
+  for(let i=0;i<26;i++){const x=rnd()*1300,y=rnd()*700;s+=`<circle class="dust" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(rnd()*2+1).toFixed(1)}" fill="#e8c9a0" opacity="${(rnd()*.35+.1).toFixed(2)}" style="animation-duration:${(8+rnd()*14).toFixed(1)}s;animation-delay:-${(rnd()*20).toFixed(1)}s"/>`}
+  return s+'</svg>';
+}
+function buildMenu(){
+  $('#menu').innerHTML=menuScene()+`<div class="mc"><h1>OUTLIVE</h1><div class="tag">Six days · One Convoy · No mercy</div>
+  <div class="mbtns"><button class="pri" data-m="play">New game</button><button data-m="tut">Tutorial</button><button data-m="rules">How to play</button><button data-m="art">Custom artwork</button><button data-m="set">Settings</button><button data-m="about">About</button></div>
+  <div class="hint" id="menuhint">${Sound.state.music?'Tap anywhere to start the music':''}</div></div>`;
+  $('#menu').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{
+    const m=b.dataset.m;sfx('click');
+    if(m==='play')newGameFlow();else if(m==='tut')tutorialFlow();else if(m==='rules')showRules();
+    else if(m==='set')panel('settings','menu');else if(m==='art')panel('art','menu');else if(m==='about')panel('about','menu');
+  });
+}
+function abortGame(){
+  V.gen++;V.paused=false;
+  const r=V.resume;V.resume=[];r.forEach(f=>f());
+  V.pm=V.pa=V.pl=V.night=null;V.turn=null;V.curHero=null;V.busy=false;
+  if(V._closeModal)V._closeModal();
+  $('#pausem').classList.remove('on');$('#fxlayer').innerHTML='';$('#banner').className='';hideCoach();
+  $('#sky').classList.remove('on');$('#app').classList.remove('night','aiplay');
+}
+function showMenu(){
+  abortGame();V.live=false;
+  $('#app').classList.remove('live');
+  if(!$('#menu').firstChild)buildMenu();
+  $('#menu').classList.add('on');
+  Sound.setMood('menu');renderCluster();
+}
+const AI_NAMES=['Rook','Vesper','Ash','Juno'];
+async function newGameFlow(){
+  const cfg=await openModal((box,done)=>{
+    head(box,'New game','Gather, feed, build and outlast the other Tribes.');
+    let n=3;const seats=[{h:true,name:'You'},{h:false},{h:false},{h:false}];
+    const cnt=document.createElement('div');cnt.className='seg';
+    const list=document.createElement('div');list.className='seats';
+    const draw=()=>{
+      cnt.innerHTML='<span>Players</span>'+[2,3,4].map(k=>`<button class="${k===n?'on':''}" data-k="${k}">${k}</button>`).join('');
+      cnt.querySelectorAll('button').forEach(b=>b.onclick=()=>{n=+b.dataset.k;draw()});
+      list.innerHTML='';
+      for(let i=0;i<n;i++){
+        const s=seats[i];const row=document.createElement('div');row.className='seat';row.style.setProperty('--c',COLORS[i].hex);
+        row.innerHTML=`<span class="dot" style="background:${COLORS[i].hex}"></span><input value="${esc(s.name||AI_NAMES[i-1]||('Player '+(i+1)))}" maxlength="14"><button class="tg ${s.h?'on':''}">${s.h?'Human':'AI'}</button>`;
+        row.querySelector('input').oninput=e=>{s.name=e.target.value};
+        row.querySelector('.tg').onclick=()=>{s.h=!s.h;draw()};
+        list.appendChild(row);
+      }
+    };
+    draw();box.appendChild(cnt);box.appendChild(list);
+    const hint=document.createElement('p');hint.className='mtext muted';hint.textContent='Mix humans and AI freely — all-human games work as hot-seat (the device is passed around). Switch every seat to AI to just watch.';box.appendChild(hint);
+    const row=document.createElement('div');row.className='mrow';
+    row.appendChild(btn('Back','',()=>done(null)));
+    row.appendChild(btn('Start game','pri',()=>done({players:seats.slice(0,n).map((s,i)=>({name:(s.name||'').trim()||('Player '+(i+1)),human:s.h}))})));
+    box.appendChild(row);
+  });
+  if(cfg)launch(cfg,{});
+}
+async function launch(cfg,opts){
+  opts=opts||{};
+  abortGame();
+  V.cfg=cfg;V.tut=!!opts.tut;V.coached={};V.logs=[];V.view=0;V.live=true;V.prev={};V.cap='';V.flash={};V.shake={};
+  $('#menu').classList.remove('on');$('#app').classList.add('live');
+  seedRng(opts.seed||(Date.now()&0x7fffffff));
+  Sound.unlock();Sound.setMood('day');renderCluster();
+  const g=V.gen;
+  try{await runGame(cfg)}
+  catch(err){
+    if(g!==V.gen)return;
+    console.error(err);
+    openModal((box,done)=>{head(box,'Something broke',esc(err&&err.message||String(err)));box.appendChild(btn('Back to menu','pri',()=>{done();showMenu()}))});
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  $('#ver').textContent='Outlive · '+VERSION;
+  window.__outlive={launch,showMenu,V,ART};
+  showMenu();
+  loadArt().then(()=>{if(G&&G.loc&&G.loc.forest)renderAll()}).catch(()=>{});
+});
+})();
+
+</script>
+</body>
+</html>
