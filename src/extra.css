@@ -135,3 +135,4 @@ input[type=range]{accent-color:var(--rust);width:140px;max-width:40vw}
 .al2{flex:1;display:flex;align-items:center;min-width:0}
 .al2 input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text);font:inherit}
 #board.map .node.dim{opacity:.75}
+.langrow{margin-top:10px;display:flex;justify-content:center}.mini{padding:6px 14px}

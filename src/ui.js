@@ -2,7 +2,7 @@
    OUTLIVE — digital prototype: user interface (v0.2)
    ===================================================================== */
 (function(){
-const VERSION='v0.3.0';
+const VERSION='v0.4.0';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const V={view:0,pm:null,pa:null,pl:null,night:null,recN:0,busy:false,logs:[],modalOpen:false,
@@ -100,7 +100,7 @@ function coach(key,title,html){
   if(!V.tut||V.coached[key])return;
   V.coached[key]=1;
   const el=$('#coach');
-  el.innerHTML=`<div class="ct">Tutorial · ${esc(title)}</div><div class="cb">${html}</div><div class="cr"><button data-a="coachx">Got it</button></div>`;
+  el.innerHTML=`<div class="ct">Tutorial · ${esc(title)}</div><div class="cb">${I18N.coach(key,html)}</div><div class="cr"><button data-a="coachx">Got it</button></div>`;
   el.classList.add('on');sfx('select');
 }
 const hideCoach=()=>$('#coach').classList.remove('on');
@@ -635,10 +635,18 @@ const RULES_HTML=`<p><b>Goal.</b> Survive 6 days and finish with the most <b>Sur
 <p class="muted">Ties: most Supplies, then most Materials + Munitions.</p>`;
 function showRules(){
   return openModal((box,done)=>{head(box,'How a game works');
-    const d=document.createElement('div');d.className='mtext';d.innerHTML=RULES_HTML;
+    const d=document.createElement('div');d.className='mtext';d.innerHTML=I18N.rules(RULES_HTML);
     box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))},{wide:true});
 }
 
+/* ---------- language ---------- */
+function setLang(l){
+  I18N.set(l);
+  buildMenu();
+  if(V.live)renderAll();
+  if($('#pausem').classList.contains('on')){const t=$('#pausem .mhead h2,#pausem h2');const cur=V.plast||'settings';panel(cur)}
+  sfx('select');
+}
 /* ---------- settings widgets ---------- */
 function settingsInto(box){
   const row=(label,ctl)=>{const d=document.createElement('div');d.className='setrow';d.innerHTML=`<span>${label}</span>`;d.appendChild(ctl);box.appendChild(d)};
@@ -646,6 +654,7 @@ function settingsInto(box){
   const rg=(v,fn)=>{const i=document.createElement('input');i.type='range';i.min=0;i.max=100;i.value=Math.round(v*100);i.oninput=()=>fn(i.value/100);i.onchange=()=>sfx('select');return i};
   const seg=(opts,cur,fn)=>{const d=document.createElement('div');d.className='segb';opts.forEach(([l,v])=>{const b=document.createElement('button');b.textContent=l;if(v===cur)b.className='on';b.onclick=()=>{fn(v);d.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');sfx('select')};d.appendChild(b)});return d};
   const st=Sound.state;
+  row('Language',seg([['English','en'],['Čeština','cs']],I18N.lang,v=>{V.plast='settings';setLang(v)}));
   row('🎵 Music',sw(st.music,v=>{Sound.unlock();Sound.setMusic(v)}));
   row('Music volume',rg(st.mv,v=>Sound.setMusicVol(v)));
   row('🔊 Sound effects',sw(st.sfx,v=>{Sound.unlock();Sound.setSfx(v)}));
@@ -675,6 +684,7 @@ function panel(view,arg){
     head(box,'Paused',V.tut?'Tutorial game':'The wasteland waits for you.');
     box.appendChild(btn('Resume','pri',()=>closePanel()));
     box.appendChild(btn('Settings','',()=>panel('settings')));
+    box.appendChild(btn('🌐 '+(I18N.lang==='cs'?'English':'Čeština'),'',()=>{V.plast='pause';setLang(I18N.lang==='cs'?'en':'cs')}));
     box.appendChild(btn('How to play','',()=>panel('rules')));
     box.appendChild(btn('Tutorial primer','',()=>panel('slides')));
     box.appendChild(btn('Restart game','',()=>panel('confirm','restart')));
@@ -682,14 +692,14 @@ function panel(view,arg){
   }else if(view==='settings'){
     head(box,'Settings');settingsInto(box);box.appendChild(btn('Back','pri',back));
   }else if(view==='rules'){
-    head(box,'How a game works');const d=document.createElement('div');d.className='mtext';d.innerHTML=RULES_HTML;box.appendChild(d);box.appendChild(btn('Back','pri',back));
+    head(box,'How a game works');const d=document.createElement('div');d.className='mtext';d.innerHTML=I18N.rules(RULES_HTML);box.appendChild(d);box.appendChild(btn('Back','pri',back));
   }else if(view==='slides'){
     slidesInto(box,false,go=>{if(go)panel('confirm','tutorial');else back()});
   }else if(view==='art'){
     artPanel(box,back);
   }else if(view==='about'){
     head(box,'About');const d=document.createElement('div');d.className='mtext';
-    d.innerHTML=`<p><b>Outlive</b> — digital prototype ${VERSION}.</p><p>An unofficial fan-made adaptation of the Outlive board game for solo and hot-seat play. Not affiliated with or endorsed by the publisher. All artwork, music and sounds in this version are original and generated in your browser.</p>`;
+    d.innerHTML=I18N.about(`<p><b>Outlive</b> — digital prototype ${VERSION}.</p><p>An unofficial fan-made adaptation of the Outlive board game for solo and hot-seat play. Not affiliated with or endorsed by the publisher. All artwork, music and sounds in this version are original and generated in your browser.</p>`,VERSION);
     box.appendChild(d);box.appendChild(btn('Back','pri',back));
   }else if(view==='confirm'){
     const what=arg;
@@ -697,7 +707,7 @@ function panel(view,arg){
     box.appendChild(btn('Yes','pri',()=>{
       $('#pausem').classList.remove('on');
       if(what==='restart'){V.paused=false;launch(V.cfg,{tut:V.tut,seed:V.tut?TUT_SEED:undefined})}
-      else if(what==='tutorial'){V.paused=false;launch({players:[{name:'You',human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED})}
+      else if(what==='tutorial'){V.paused=false;launch({players:[{name:YOU(),human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED})}
       else{V.paused=false;showMenu()}
     }));
     box.appendChild(btn('Cancel','',()=>panel('pause')));
@@ -755,7 +765,7 @@ const SLIDES=[
 function slidesInto(box,fromMenu,onClose){
   let i=0;
   const draw=()=>{
-    const s=SLIDES[i];box.innerHTML='';
+    const s0=SLIDES[i],cs=I18N.slide(i,null),s=cs?{...s0,t:cs.t,h:cs.h}:s0;box.innerHTML='';
     const d=document.createElement('div');d.className='slide';
     d.innerHTML=`<h2>${esc(s.t)}</h2><div class="viz">${s.viz}</div><p class="mtext">${s.h}</p><div class="dots">${SLIDES.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div>`;
     box.appendChild(d);
@@ -771,7 +781,7 @@ function slidesInto(box,fromMenu,onClose){
 const TUT_SEED=20261;
 async function tutorialFlow(){
   const go=await openModal((box,done)=>slidesInto(box,true,done),{wide:true});
-  if(go)launch({players:[{name:'You',human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED});
+  if(go)launch({players:[{name:YOU(),human:true},{name:'Rook',human:false}]},{tut:true,seed:TUT_SEED});
 }
 
 /* ---------- menu + game flow ---------- */
@@ -791,11 +801,12 @@ function menuScene(){
 function buildMenu(){
   $('#menu').innerHTML=menuScene()+`<div class="mc"><h1>OUTLIVE</h1><div class="tag">Six days · One Convoy · No mercy</div>
   <div class="mbtns"><button class="pri" data-m="play">New game</button><button data-m="tut">Tutorial</button><button data-m="rules">How to play</button><button data-m="art">Custom artwork</button><button data-m="set">Settings</button><button data-m="about">About</button></div>
+  <div class="langrow"><button data-m="lang" class="mini">🌐 ${I18N.lang==='cs'?'English':'Čeština'}</button></div>
   <div class="hint" id="menuhint">${Sound.state.music?'Tap anywhere to start the music':''}</div></div>`;
   $('#menu').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{
     const m=b.dataset.m;sfx('click');
     if(m==='play')newGameFlow();else if(m==='tut')tutorialFlow();else if(m==='rules')showRules();
-    else if(m==='set')panel('settings','menu');else if(m==='art')panel('art','menu');else if(m==='about')panel('about','menu');
+    else if(m==='set')panel('settings','menu');else if(m==='art')panel('art','menu');else if(m==='about')panel('about','menu');else if(m==='lang')setLang(I18N.lang==='cs'?'en':'cs');
   });
 }
 function abortGame(){
@@ -813,11 +824,12 @@ function showMenu(){
   $('#menu').classList.add('on');
   Sound.setMood('menu');renderCluster();
 }
+const YOU=()=>I18N.lang==='cs'?'Ty':'You';
 const AI_NAMES=['Rook','Vesper','Ash','Juno'];
 async function newGameFlow(){
   const cfg=await openModal((box,done)=>{
     head(box,'New game','Gather, feed, build and outlast the other Tribes.');
-    let n=3;const seats=[{h:true,name:'You'},{h:false},{h:false},{h:false}];
+    let n=3;const seats=[{h:true,name:YOU()},{h:false},{h:false},{h:false}];
     const cnt=document.createElement('div');cnt.className='seg';
     const list=document.createElement('div');list.className='seats';
     const draw=()=>{
@@ -826,7 +838,7 @@ async function newGameFlow(){
       list.innerHTML='';
       for(let i=0;i<n;i++){
         const s=seats[i];const row=document.createElement('div');row.className='seat';row.style.setProperty('--c',COLORS[i].hex);
-        row.innerHTML=`<span class="dot" style="background:${COLORS[i].hex}"></span><input value="${esc(s.name||AI_NAMES[i-1]||('Player '+(i+1)))}" maxlength="14"><button class="tg ${s.h?'on':''}">${s.h?'Human':'AI'}</button>`;
+        row.innerHTML=`<span class="dot" style="background:${COLORS[i].hex}"></span><input value="${esc(s.name||AI_NAMES[i-1]||((I18N.lang==='cs'?'Hráč ':'Player ')+(i+1)))}" maxlength="14"><button class="tg ${s.h?'on':''}">${s.h?'Human':'AI'}</button>`;
         row.querySelector('input').oninput=e=>{s.name=e.target.value};
         row.querySelector('.tg').onclick=()=>{s.h=!s.h;draw()};
         list.appendChild(row);
