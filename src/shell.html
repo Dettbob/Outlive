@@ -157,21 +157,19 @@ table.score small{color:var(--muted);margin-left:2px}
   .rooms{grid-template-columns:1fr 1fr}
 }
 /*EXTRA*/
+/*GAMECSS*/
 </style>
 </head>
 <body>
 <div id="sky"></div>
 <div id="app">
-  <header id="top"></header>
+  <main id="board"><div id="stage"><svg id="bsvg"></svg><div id="nodes"></div></div></main>
+  <header id="hud"></header>
   <div id="turnbar"></div>
-  <div id="events"></div>
-  <main id="board"></main>
+  <section id="evpanel"><div class="evin"><div class="evhead"><span>Convoy Board</span></div><div class="evgrid" id="evgrid"></div>
+    <details id="logwrap"><summary>Game log</summary><div id="log"></div></details></div></section>
   <section id="action"></section>
-  <aside id="side">
-    <div id="tabs"></div>
-    <div id="shelter"></div>
-    <details id="logwrap"><summary>Game log</summary><div id="log"></div></details>
-  </aside>
+  <aside id="drawer"><div id="dhandle" data-a="drawer"></div><div id="dbody"></div></aside>
 </div>
 <div id="menu"></div>
 <div id="cluster"></div>
@@ -181,6 +179,7 @@ table.score small{color:var(--muted);margin-left:2px}
 <div id="modal"></div>
 <div id="pausem"></div>
 <div id="ver"></div>
+<script>const MAP_URL="data:image/jpeg;base64,/*MAPDATA*/";</script>
 <script>
 /*ENGINE*/
 </script>

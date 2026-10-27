@@ -12,9 +12,9 @@ const RN={wood:'Wood',metal:'Metal',chip:'Microchips',meat:'Meat',water:'Water',
 const RI={wood:'🪵',metal:'🔩',chip:'💾',meat:'🍖',water:'💧',canned:'🥫',mun:'💥'};
 const COLORS=[{id:'purple',name:'Purple',hex:'#9b6bff'},{id:'orange',name:'Orange',hex:'#ff8f3a'},{id:'beige',name:'Sand',hex:'#e2d2a6'},{id:'blue',name:'Blue',hex:'#3fa2ff'}];
 const LOCS={
-  forest:{n:'Forest',x:15,y:14,k:'wild'},
-  dam:{n:'The Dam',x:50,y:15,k:'dam'},
-  mb:{n:'Military Base',x:85,y:13,k:'base'},
+  forest:{n:'Forest',x:15,y:20,k:'wild'},
+  dam:{n:'The Dam',x:50,y:21,k:'dam'},
+  mb:{n:'Military Base',x:85,y:19,k:'base'},
   bc:{n:'Blackwood City',x:15,y:44,k:'city'},
   sp:{n:'Silent Peak',x:85,y:44,k:'city'},
   fair:{n:'Fairgrounds',x:15,y:80,k:'wild'},
@@ -32,7 +32,8 @@ const CITIES=['bc','sp'];
 const CARGO_SPOTS=[{s:3,canned:1},{s:4,canned:2},{s:5,canned:3},{s:6,canned:4}];
 const RAD_DAY=[1,2,2,2,3,3];
 const ROOM_SCORE=[0,0,1,2,4,7,11,17];
-const AIR_ROW=4,AIR_ROWS=3,AIR_MAX=AIR_ROW*AIR_ROWS;
+const AIR_SIZES=[2,5],AIR_MAX=7;                       // Airlock: row 1 holds 2, row 2 holds 5 (only after row 1 is full); 1 Water per used row
+const airRows=n=>n<=0?0:n<=AIR_SIZES[0]?1:2;
 const SEARCH_TILES=['water','canned','wood','metal','chip','mun','mun','algae','empty','empty'];
 
 const ROOMS={
@@ -198,7 +199,7 @@ async function setupGame(){
     let leader,four;
     if(p.human){
       await handoff(p);
-      const id=await u.chooseOne(`${p.name}: choose your Leader`,L2.map(l=>({id:l.id,label:`${l.n} (age ${l.age})`,sub:`Start: ${l.locs.map(x=>LOCS[x].n).join(', ')} · ${costStr(l.res)} · ${EQ[l.eq].n} (broken)`})),'Your Leader sets your starting locations, resources and equipment. The oldest Leader goes first.');
+      const id=await u.chooseOne(`${p.name}: choose your Leader`,L2.map(l=>({id:l.id,leader:l.id,label:`${l.n} (age ${l.age})`,sub:`Start: ${l.locs.map(x=>LOCS[x].n).join(', ')} · ${costStr(l.res)} · ${EQ[l.eq].n} (broken)`})),'Your Leader sets your starting locations, resources and equipment. The oldest Leader goes first.');
       leader=L2.find(l=>l.id===id);
       const sel=await u.chooseMany(`${p.name}: keep 4 of these 6 Advanced Rooms`,six.map((k,i)=>({id:String(i),label:ROOMS[k].n,sub:`${ROOMS[k].w} · ${ROOMS[k].cap} spaces · upkeep ${ROOMS[k].up} · ${ROOMS[k].t}`})),4);
       four=sel.map(i=>six[+i]);
@@ -723,7 +724,7 @@ function eventCost(p,id){
   return{cost:{...base},disc:false};
 }
 function supplyNeeds(p,extraRooms){
-  const rows=Math.ceil(p.air/AIR_ROW);
+  const rows=airRows(p.air);
   const rooms=p.rooms.filter(r=>r.built&&r.pop>0).reduce((a,r)=>a+ROOMS[r.k].up,0);
   return{rows,rooms};
 }
@@ -786,7 +787,7 @@ async function decideEvent(p){
   return best?best.id:null;
 }
 async function feedStep(p){
-  const rows=Math.ceil(p.air/AIR_ROW);
+  const rows=airRows(p.air);
   let needRows=rows,perm=hasRoom(p,'cistern')?activeRooms(p,'cistern').length:0;
   const fp=Math.min(perm,needRows);needRows-=fp;perm-=fp;
   const wu=Math.min(needRows,p.res.water);p.res.water-=wu;needRows-=wu;

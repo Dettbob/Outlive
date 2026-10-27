@@ -2,7 +2,7 @@
    OUTLIVE — digital prototype: user interface (v0.2)
    ===================================================================== */
 (function(){
-const VERSION='v0.4.0';
+const VERSION='v0.5.0';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const V={view:0,pm:null,pa:null,pl:null,night:null,recN:0,busy:false,logs:[],modalOpen:false,
@@ -76,7 +76,7 @@ function openModal(build,opts){
   return new Promise(resolve=>{
     const root=$('#modal');
     root.innerHTML='';
-    const box=document.createElement('div');box.className='mbox'+(opts.wide?' wide':'');
+    const box=document.createElement('div');box.className='mbox'+(opts.wide?' wide':'')+(opts.huge?' huge':'');
     root.appendChild(box);root.classList.add('on');V.modalOpen=true;sfx('open');
     const done=v=>{root.classList.remove('on');root.innerHTML='';V.modalOpen=false;renderTurn();resolve(v)};
     V._closeModal=()=>{root.classList.remove('on');root.innerHTML='';V.modalOpen=false};
@@ -86,31 +86,43 @@ function openModal(build,opts){
 }
 function btn(label,cls,fn,sub){
   const b=document.createElement('button');b.className='btn '+(cls||'');
-  b.innerHTML=`<span class="bl">${label}</span>`+(sub?`<span class="bs">${sub}</span>`:'');
+  b.innerHTML=`<span class="bl">${ic(label)}</span>`+(sub?`<span class="bs">${ic(sub)}</span>`:'');
   b.onclick=fn;return b;
 }
 function head(box,title,text){
-  const h=document.createElement('h2');h.innerHTML=title;box.appendChild(h);
-  if(text){const p=document.createElement('p');p.className='mtext';p.innerHTML=text;box.appendChild(p)}
+  const h=document.createElement('h2');h.innerHTML=ic(title);box.appendChild(h);
+  if(text){const p=document.createElement('p');p.className='mtext';p.innerHTML=ic(text);box.appendChild(p)}
 }
-function infoModal(title,html){return openModal((box,done)=>{head(box,title);const d=document.createElement('div');d.className='mtext';d.innerHTML=html;box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))})}
+function infoModal(title,html){return openModal((box,done)=>{head(box,title);const d=document.createElement('div');d.className='mtext';d.innerHTML=ic(html);box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))})}
 
 /* ---------- coach (tutorial hints) ---------- */
 function coach(key,title,html){
   if(!V.tut||V.coached[key])return;
   V.coached[key]=1;
   const el=$('#coach');
-  el.innerHTML=`<div class="ct">Tutorial · ${esc(title)}</div><div class="cb">${I18N.coach(key,html)}</div><div class="cr"><button data-a="coachx">Got it</button></div>`;
+  el.innerHTML=`<div class="ct">Tutorial · ${esc(title)}</div><div class="cb">${ic(I18N.coach(key,html))}</div><div class="cr"><button data-a="coachx">Got it</button></div>`;
   el.classList.add('on');sfx('select');
 }
 const hideCoach=()=>$('#coach').classList.remove('on');
 
 /* ---------- small html helpers ---------- */
-const resChip=(r,n,chg)=>`<span class="rc ${chg?'chg':''}" title="${RN[r]}">${RI[r]}<b>${n}</b></span>`;
-const costHtml=c=>Object.entries(c).filter(([,v])=>v>0).map(([r,v])=>`<span class="cc">${v}${RI[r]}</span>`).join(' ')||'<span class="cc">free</span>';
-function eqChip(id,state){
-  const e=EQ[id];
-  return `<button class="eq ${state||''}" data-a="infoeq" data-id="${id}" title="${esc(e.t)}"><span class="sym" style="color:${SYM_COL[e.sym]}">${SYMS[e.sym]}</span>${esc(e.n)}</button>`;
+const tr=s=>I18N.tr(s);
+const T=s=>ic(tr(s));                       // engine text -> translated + emoji replaced by drawn icons
+const TE=s=>ic(esc(tr(s)));
+const L2=(en,cs)=>I18N.lang==='cs'?cs:en;
+const resChip=(r,n,chg)=>`<span class="rc ${chg?'chg':''}" title="${RN[r]}">${icon(r)}<b>${n}</b></span>`;
+const costHtml=c=>Object.entries(c).filter(([,v])=>v>0).map(([r,v])=>`<span class="cc">${v}${icon(r)}</span>`).join(' ')||'<span class="cc">free</span>';
+function eqCard(id,state,o){
+  o=o||{};const e=EQ[id];
+  const cost=Object.entries(e.cost).map(([r,v])=>icon(r).repeat(v)).join('');
+  return `<div class="ec ${e.side} ${state||''} ${o.cls||''}" ${o.act===null?'':`data-a="${o.act||'infoeq'}"`} data-id="${id}" title="${esc(e.n)}"><div class="cost">${cost}</div>${glyph(id)}<div class="nm">${esc(e.n)}</div><div class="fx">${esc(e.t)}</div>${symHalf(e.sym,e.side)}</div>`;
+}
+const facePic=(id)=>ART.leaders[id]?`<img class="por" src="${ART.leaders[id]}" alt="">`:faceSvg(id);
+function leaderCard(l){
+  return `<div class="lcard"><div class="lp">${facePic(l.id)}<span class="age" title="Age">${l.age}</span></div><div class="ln">${esc(l.n)}</div>
+  <div class="ls"><div class="k">Start positions</div><div class="pins">${l.locs.map(k=>`<span class="pin">${esc(LOCS[k].n)}</span>`).join('')}</div></div>
+  <div class="ls"><div class="k">Starting resources</div><div class="rrow">${Object.entries(l.res).map(([r,n])=>`<span>${n}${icon(r)}</span>`).join('')}</div></div>
+  <div class="ls"><div class="k">Starting equipment</div><div class="eqw">${eqCard(l.eq,'broken',{cls:'mini',act:null})}<span>${esc(EQ[l.eq].n)}</span></div></div></div>`;
 }
 function heroTok(p,hi){
   const h=p.heroes[hi];
@@ -122,43 +134,34 @@ function heroTok(p,hi){
   return `<button class="${cls.join(' ')}" style="--c:${p.color.hex}" data-a="hero" data-p="${p.id}" data-hi="${hi}" title="${esc(p.name)} · Strength ${h.str} · ${h.state==='act'?'activated':'idle'}">${h.str}</button>`;
 }
 
-/* ---------- original board art (simple silhouettes, not the official illustration) ---------- */
-function art(k){
-  const tr=(x,y,s)=>`<path d="M${x} ${y-14*s}l${6*s} ${14*s}h${-12*s}z M${x} ${y-8*s}l${8*s} ${10*s}h${-16*s}z"/>`;
-  const bld=(x,w,h)=>`<rect x="${x}" y="${60-h}" width="${w}" height="${h}"/>`;
-  let g='';
-  switch(k){
-    case'forest':g=[8,22,36,50,64,80,92].map((x,i)=>tr(x,58,1+(i%3)*.25)).join('');break;
-    case'dam':g='<path d="M0 22h100v8H0z"/><path d="M4 30h92v26H4z" opacity=".7"/><path d="M40 8h20v14H40z"/><path d="M0 50q25-6 50 0t50 0v10H0z" opacity=".5"/>';break;
-    case'mb':g='<path d="M4 58a12 14 0 0 1 24 0zM34 58a12 14 0 0 1 24 0zM64 58a12 14 0 0 1 24 0z"/><rect x="90" y="18" width="4" height="40"/><path d="M86 18h12l-6-8z"/>';break;
-    case'city':g=bld(6,12,34)+bld(20,10,48)+bld(32,14,28)+bld(48,10,52)+bld(60,14,36)+bld(76,10,44)+bld(88,9,26);break;
-    case'fair':g='<circle cx="68" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="68" cy="34" r="3"/><path d="M68 12v44M46 34h44M52 18l32 32M84 18L52 50" stroke="currentColor" stroke-width="1" fill="none"/><path d="M4 56q10-34 24-8t24 8" fill="none" stroke="currentColor" stroke-width="2"/>';break;
-    case'cargo':g='<path d="M4 44h92l-10 14H16z"/><rect x="20" y="30" width="12" height="14"/><rect x="34" y="26" width="12" height="18"/><rect x="48" y="32" width="12" height="12"/><rect x="62" y="28" width="12" height="16"/><rect x="76" y="34" width="10" height="10"/>';break;
-    case'mine':g='<ellipse cx="55" cy="56" rx="48" ry="9"/><ellipse cx="55" cy="46" rx="36" ry="8" opacity=".8"/><ellipse cx="55" cy="37" rx="24" ry="6" opacity=".6"/><ellipse cx="55" cy="29" rx="12" ry="4" opacity=".5"/>';break;
-  }
-  return `<svg class="art" viewBox="0 0 100 60" preserveAspectRatio="xMidYMax slice" fill="currentColor" aria-hidden="true">${g}</svg>`;
-}
-const ART_OF={forest:'forest',dam:'dam',mb:'mb',bc:'city',sp:'city',fair:'fair',cargo:'cargo',mine:'mine'};
-
 /* ---------- rendering ---------- */
-function renderTop(){
-  if(!G)return;
-  const pips=[];
-  for(let d=1;d<=6;d++){
-    const rev=d<=G.day&&G.events[d-1]&&(d<G.day||G.phase!=='dawn');
-    const ev=rev?EVENTS[G.events[d-1]].n:'?';
-    const cls=d===G.day?'cur':(d<G.day?'past':'');
-    const taken=rev&&!G.active.includes(G.events[d-1]);
-    pips.push(`<div class="pip ${cls} ${taken?'solved':''}"><span class="pd">DAY ${d}</span><span class="pe">${esc(ev)}</span><span class="pr">☢${RAD_DAY[d-1]}</span></div>`);
-  }
+function renderHud(){
+  if(!G||!$('#hud'))return;
+  const d=Math.max(1,Math.min(6,G.day||1));
+  const dots=[1,2,3,4,5,6].map(i=>`<span class="dtk ${i===d?'cur':i<d?'past':''}">${i}</span>`).join('');
   const first=G.players[G.first];
   const phase=G.phase==='setup'?'Setup':G.phase==='over'?'Game over':({dawn:'Dawn',day:'Day',night:'Night'}[G.phase]||'');
-  $('#top').innerHTML=`<div class="brand">OUTLIVE<small>digital prototype</small></div>
-    <div class="convoy">${pips.join('')}</div>
-    <div class="tinfo"><div><span class="pill ${G.phase}">${phase}</span></div>
-    <div class="first" title="First Player token"><span class="dot" style="background:${first.color.hex}"></span>${esc(first.name)} first</div></div>`;
-  const act=G.active.map(id=>`<button class="evc" data-a="infoev" data-id="${id}" title="${esc(EVENTS[id].t)}"><b>${esc(EVENTS[id].n)}</b><span>${costHtml(EVENTS[id].cost)} · +${EVENTS[id].sp} SP</span></button>`).join('');
-  $('#events').innerHTML=act?`<span class="elabel">Active events</span>${act}`:`<span class="elabel dim">No active events</span>`;
+  const n=G.active.length;
+  $('#hud').innerHTML=`<div class="brand">OUTLIVE<small style="display:inline;margin-left:6px">${VERSION}</small></div><div class="daytrack" title="Day">${dots}</div><span class="pill ${G.phase}">${phase}</span>
+    <span class="tonight" title="Radiation added to every Shelter tonight">${icon('rad')} tonight +${RAD_DAY[d-1]}</span>
+    <button class="hudbtn ${V.ev?'on':''}" data-a="evtoggle">${icon('event')}<span class="lbl">Events</span>${n?`<span class="badge">${n}</span>`:''}<span>${V.ev?'▴':'▾'}</span></button>
+    ${first?`<div class="first" title="First Player token"><span class="dot" style="background:${first.color.hex}"></span>${esc(first.name)} first</div>`:''}`;
+  renderEvPanel();
+}
+function renderEvPanel(){
+  const el=$('#evgrid');if(!el||!G)return;
+  let h='';
+  for(let d=1;d<=6;d++){
+    const id=G.events[d-1];
+    const rev=d<=G.day&&id&&(d<G.day||G.phase!=='dawn');
+    if(!rev){h+=`<div class="evcard future"><div class="dn"><span>DAY ${d}</span><span class="rd">${icon('rad')}${RAD_DAY[d-1]}</span></div><h4>?</h4></div>`;continue}
+    const e=EVENTS[id],active=G.active.includes(id),win=G.players.find(p=>p.events.includes(id));
+    h+=`<div class="evcard ${active?'active':'won'}" data-a="infoev" data-id="${id}"><div class="dn"><span>DAY ${d}</span><span class="rd">${icon('rad')}${RAD_DAY[d-1]}</span></div><h4>${esc(e.n)}</h4><p>${esc(e.t)}</p>
+      <div class="ft"><span>${costHtml(e.cost)}</span><b>+${e.sp} SP</b></div>
+      <span class="st">${active?'Active':win?`✓ Overcome · <i class="dot" style="background:${win.color.hex};margin:0"></i>${esc(win.name)}`:'—'}</span></div>`;
+  }
+  el.innerHTML=h;
+  $('#evpanel').classList.toggle('open',!!V.ev);
 }
 function renderTurn(){
   const el=$('#turnbar');if(!el)return;
@@ -176,25 +179,19 @@ function renderTurn(){
   }).join('');
   let who,end='';
   if(mode==='you'){
-    who=`<div class="who"><b class="y">▶ ${G.humans===1?'YOUR TURN':esc(cur.name).toUpperCase()+"'S TURN"}</b><span class="cap">${esc(sub)}</span></div>`;
+    who=`<div class="who"><b class="y">▶ ${G.humans===1?'YOUR TURN':esc(cur.name).toUpperCase()+"'S TURN"}</b><span class="cap">${TE(sub)}</span></div>`;
     if(V.pa)end=`<button class="endturn" data-a="endturn">End Hero's turn</button>`;
     else if(V.night)end=`<button class="endturn" data-a="endturn">End turn</button>`;
     else if(V.pm)end=`<button class="endturn" disabled>Move a Hero first</button>`;
   }else if(mode==='ai'){
-    who=`<div class="who"><b><span class="spin"></span>${esc(cur.name)} (AI) is playing…</b><span class="cap">${esc(V.cap||'')}</span></div>`;
+    who=`<div class="who"><b><span class="spin"></span>${esc(cur.name)} (AI) is playing…</b><span class="cap">${TE(V.cap||'')}</span></div>`;
   }else{
-    who=`<div class="who"><b>${phase}</b><span class="cap">${esc(V.cap||'')}</span></div>`;
+    who=`<div class="who"><b>${phase}</b><span class="cap">${TE(V.cap||'')}</span></div>`;
   }
   el.className=mode==='you'?'you':mode==='ai'?'ai':'';
   el.style.setProperty('--c',cur?cur.color.hex:'#555');
   el.innerHTML=`${who}<div class="order">${chips}</div>${end}`;
   $('#app').classList.toggle('aiplay',mode==='ai');
-}
-function hubHtml(){
-  if(ART.map)return '';
-  const ph=G.phase==='night'?'🌙':G.phase==='dawn'?'🌅':'☀️';
-  const d=Math.max(1,Math.min(6,G.day||1));
-  return `<div class="hub"><div class="hd">DAY</div><div class="hn">${d}<small style="font-size:.35em;opacity:.6">/6</small></div><div class="hp">${ph}</div><div class="hr" title="Radiation added to every Shelter tonight">☢ tonight +${RAD_DAY[d-1]}</div></div>`;
 }
 function nodeHtml(k){
   const L=LOCS[k],loc=G.loc[k],res=LOC_RES[k];
@@ -208,159 +205,187 @@ function nodeHtml(k){
   if(V.flash[k]>now)cls.push('flash');
   if(V.shake[k]>now&&V.anim)cls.push('shake');
   let body='';
-  if(res)body+=`<div class="pool">${RI[res]}<b>${loc.amt}</b><small>${L.k==='dam'?'needs 1💾':''}</small></div>`;
+  if(res)body+=`<div class="pool">${icon(res)}<b>${loc.amt}</b>${L.k==='dam'?`<small>needs 1</small>${icon('chip','sm')}`:''}</div>`;
   if(loc.game){
     const t=loc.game[0];
-    body+=`<div class="game" title="Wild Game stack: only the top tile can be hunted">🦌 ${loc.game.length}${t?` · next: <b>End ${t.end+(G.fx.mut?1:0)}</b>`:' · empty'}</div>`;
+    body+=`<div class="game" title="Wild Game stack: only the top tile can be hunted">${icon('deer')}<b>${loc.game.length}</b>${t?`<span>next:</span> <b>End ${t.end+(G.fx.mut?1:0)}</b>`:'<span>· empty</span>'}</div>`;
   }
   if(L.k==='city'){
-    body+=`<div class="game">🔎 ${loc.search.length} tiles</div><div class="eqs">${loc.equip.map(t=>eqChip(t)).join('')}</div>`;
+    body+=`<div class="srch">${icon('search')}<b>${loc.search.length}</b> <span>tiles</span></div><div class="eqs">${loc.equip.map(t=>eqCard(t,'',{cls:'mini'})).join('')}</div>`;
   }
   if(L.k==='cargo'){
-    body+=`<div class="spots">`+CARGO_SPOTS.map((s,i)=>{
+    body+=`<div class="spots">`+CARGO_SPOTS.slice().reverse().map((s,ri)=>{
+      const i=CARGO_SPOTS.length-1-ri;
       const occ=G.players.flatMap(q=>q.heroes.filter(h=>h.loc==='cargo'&&h.state==='act'&&h.spot===i).map(()=>q.color.hex));
-      return `<div class="spot ${i===3?'hook':''}" title="${i===3?'Needs Grappling Hook':'Strength '+s.s}"><b>${s.s}</b>→${s.canned}🥫👤${occ.map(c=>`<i style="background:${c}"></i>`).join('')}</div>`;
+      return `<div class="spot ${i===3?'hook':''}" title="${i===3?'Needs Grappling Hook':'Strength '+s.s}"><b>${s.s}</b>→${s.canned}${icon('canned')}${icon('surv')}${occ.map(c=>`<i style="background:${c}"></i>`).join('')}</div>`;
     }).join('')+`</div>`;
   }
-  if(L.k==='base')body+=`<div class="game">🌿 Algae ${G.algae?'<b>ready</b>':'taken'}</div>`;
+  if(L.k==='base')body+=`<div class="game">${icon('algae')}<span>Algae</span> ${G.algae?'<b>ready</b>':'<span>taken</span>'}</div>`;
   const heroes=G.players.flatMap(p=>p.heroes.map((h,hi)=>h.loc===k?heroTok(p,hi):'')).join('');
-  return `<div class="${cls.join(' ')}" data-a="loc" data-loc="${k}" style="left:${L.x}%;top:${L.y}%">${ART.map?'':art(ART_OF[k])}<div class="nh">${esc(L.n)}</div>${body}<div class="hrow">${heroes}</div>${dest&&dest.exo?'<div class="exo">Exoskeleton</div>':''}</div>`;
+  return `<div class="${cls.join(' ')}" data-a="loc" data-loc="${k}" style="left:${L.x}%;top:${L.y}%"><div class="nh">${esc(L.n)}</div>${body}<div class="hrow">${heroes}</div>${dest&&dest.exo?'<div class="exo">Exoskeleton</div>':''}</div>`;
 }
 function drawBg(){
-  const b=$('#board'),svg=$('#bsvg');if(!b||!svg)return;
+  const b=$('#stage'),svg=$('#bsvg');if(!b||!svg)return;
   const W=b.clientWidth,H=b.clientHeight;if(!W||!H)return;
-  const X=p=>(p*W/100).toFixed(1),Y=p=>(p*H/100).toFixed(1);
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  const onMap=!!ART.map;
-  let s=onMap?'':`<defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#26301b"/><stop offset=".5" stop-color="#2a2a1a"/><stop offset="1" stop-color="#1b2216"/></linearGradient>
-  <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27546a"/><stop offset="1" stop-color="#17323f"/></linearGradient></defs>
-  <rect width="${W}" height="${H}" fill="url(#gl)"/>`;
-  // wasteland texture
-  if(!onMap)for(let i=0;i<34;i++){const x=(i*37%100),y=(i*53%100);s+=`<ellipse cx="${X(x)}" cy="${Y(y)}" rx="${(W*.03+(i%5)*5).toFixed(0)}" ry="${(H*.02+(i%4)*4).toFixed(0)}" fill="${i%3?'#2f3a22':'#3a3320'}" opacity=".35"/>`}
-  // river: from the north, widening into a bay with the Cargo Ship, to the south
-  if(!onMap)s+=`<path d="M${X(45)} 0 C${X(40)} ${Y(22)},${X(33)} ${Y(33)},${X(34)} ${Y(50)} C${X(35)} ${Y(64)},${X(43)} ${Y(66)},${X(45)} ${Y(100)} L${X(56)} ${Y(100)} C${X(57)} ${Y(68)},${X(66)} ${Y(62)},${X(66)} ${Y(48)} C${X(66)} ${Y(32)},${X(60)} ${Y(20)},${X(57)} 0 Z" fill="url(#gr)" opacity=".92"/>`;
-  if(!onMap)s+=`<path d="M${X(47)} ${Y(8)}q${X(-3)} ${Y(14)} ${X(-2)} ${Y(30)}M${X(54)} ${Y(10)}q${X(4)} ${Y(14)} ${X(3)} ${Y(30)}M${X(48)} ${Y(66)}q${X(1)} ${Y(14)} ${X(1)} ${Y(26)}" stroke="#9fd0e6" stroke-width="1.5" fill="none" opacity=".25"/>`;
-  // arrows between the 8 locations (single ring)
-  const br=b.getBoundingClientRect();
-  const R={};b.querySelectorAll('.node').forEach(n=>{const r=n.getBoundingClientRect();R[n.dataset.loc]={cx:r.left-br.left+r.width/2,cy:r.top-br.top+r.height/2,hw:r.width/2,hh:r.height/2}});
-  EDGES.forEach(([a,c])=>{
-    const A=R[a],B=R[c];if(!A||!B)return;
-    const dx=B.cx-A.cx,dy=B.cy-A.cy,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
-    const ex=(r)=>Math.min(Math.abs(ux)>1e-6?r.hw/Math.abs(ux):1e9,Math.abs(uy)>1e-6?r.hh/Math.abs(uy):1e9);
-    const pad=5,t1=ex(A)+pad,t2=ex(B)+pad;
-    const x1=A.cx+ux*t1,y1=A.cy+uy*t1,x2=B.cx-ux*t2,y2=B.cy-uy*t2;
-    const L2=Math.hypot(x2-x1,y2-y1);if(L2<9)return;
-    const hl=Math.min(11,L2*.32),nx=-uy*5.5,ny=ux*5.5;
-    const head=(px,py,dx,dy)=>{const bx=px-dx*hl,by=py-dy*hl;return `<path class="arrowhead" d="M${px.toFixed(1)} ${py.toFixed(1)}L${(bx+nx).toFixed(1)} ${(by+ny).toFixed(1)}L${(bx-nx).toFixed(1)} ${(by-ny).toFixed(1)}z"/>`};
-    s+=`<path class="arrow" d="M${(x1+ux*hl*.8).toFixed(1)} ${(y1+uy*hl*.8).toFixed(1)}L${(x2-ux*hl*.8).toFixed(1)} ${(y2-uy*hl*.8).toFixed(1)}"/>`+head(x2,y2,ux,uy)+head(x1,y1,-ux,-uy);
-  });
+  let s='';
+  if(V.pm&&V.pm.sel!=null){
+    const o=V.pm.opts.find(o=>o.hi===V.pm.sel),h=V.pm.p.heroes[V.pm.sel];
+    const C=k=>({x:LOCS[k].x*W/100,y:LOCS[k].y*H/100});
+    if(o&&h)o.dests.forEach(d=>{
+      const pts=[C(h.loc)];
+      if(!ADJ[h.loc].includes(d.loc)&&!d.exo){const m=ADJ[h.loc].find(m=>ADJ[m].includes(d.loc));if(m)pts.push(C(m))}
+      pts.push(C(d.loc));
+      s+=`<path class="route" d="M${pts.map(p=>p.x.toFixed(0)+' '+p.y.toFixed(0)).join('L')}"/>`;
+      const a=pts[pts.length-2],z=pts[pts.length-1],ang=Math.atan2(z.y-a.y,z.x-a.x),back=Math.min(W*.085,Math.hypot(z.x-a.x,z.y-a.y)*.5),px=z.x-Math.cos(ang)*back,py=z.y-Math.sin(ang)*back,hl=W*.016;
+      const nx=-Math.sin(ang)*hl*.6,ny=Math.cos(ang)*hl*.6;
+      s+=`<path class="routehead" d="M${(px+Math.cos(ang)*hl).toFixed(0)} ${(py+Math.sin(ang)*hl).toFixed(0)}L${(px+nx).toFixed(0)} ${(py+ny).toFixed(0)}L${(px-nx).toFixed(0)} ${(py-ny).toFixed(0)}z"/>`;
+    });
+  }
   svg.innerHTML=s;
 }
 function renderBoard(){
   if(!G||!G.loc.forest)return;
-  const bd=$('#board');
-  bd.classList.toggle('map',!!ART.map);
-  bd.style.backgroundImage=ART.map?`url(${ART.map})`:'';
-  bd.style.aspectRatio=ART.map&&innerWidth>900?String(ART.mapRatio):'';
-  $('#board').innerHTML=`<svg id="bsvg"></svg>`+hubHtml()+Object.keys(LOCS).map(nodeHtml).join('');
+  const st=$('#stage');
+  const url=`url(${ART.map||MAP_URL})`;if(st.dataset.bg!==url){st.style.backgroundImage=url;$('#board').style.setProperty('--bgmap',url);st.dataset.bg=url}
+  $('#nodes').innerHTML=Object.keys(LOCS).map(nodeHtml).join('');
+  const bd=$('#board');if(!bd.dataset.ctr&&bd.scrollWidth>bd.clientWidth){bd.scrollLeft=(bd.scrollWidth-bd.clientWidth)/2;bd.dataset.ctr=1}
   drawBg();
 }
-if(window.ResizeObserver)new ResizeObserver(()=>{if(G&&G.loc&&G.loc.forest)drawBg()}).observe(document.getElementById('board'));
-function gauge(p){
-  let h='';
-  for(let v=3;v>=-11;v--){h+=`<i class="g ${v>0?'pos':v===0?'zero':'neg'} ${p.rad===v?'on':''}">${p.rad===v?'☢':v}</i>`}
-  return `<div class="gauge" title="Radioactivity: ${p.rad} (scores ${p.rad>=0?'+':''}${p.rad} SP)">${h}</div>`;
+if(window.ResizeObserver)new ResizeObserver(()=>{if(G&&G.loc&&G.loc.forest)drawBg()}).observe(document.getElementById('stage'));
+
+/* ----- the bunker (player board) ----- */
+const slotIc=(i,on,p)=>`<span class="slot ${on?'':'empty'}" style="--c:${p.color.hex}">${svIcon(i)}</span>`;
+function radCol(p){
+  let h=`<div class="rh" title="Radioactivity: ${p.rad} (scores ${p.rad>=0?'+':''}${p.rad} SP)">${icon('rad')}</div>`;
+  for(let v=3;v>=-11;v--)h+=`<i class="g ${v>0?'pos':v===0?'zero':'neg'} ${v<=-6?'deep':''} ${p.rad===v?'on':''}">${p.rad===v?icon('rad'):v}</i>`;
+  return `<div class="radcol">${h}</div>`;
 }
-function airlock(p){
-  let h='';
-  for(let r=0;r<AIR_ROWS;r++){
-    let row='';
-    for(let c=0;c<AIR_ROW;c++){const i=r*AIR_ROW+c;row+=`<i class="sv ${i<p.air?'f':''}" style="--c:${p.color.hex}"></i>`}
-    h+=`<div class="arow">${row}<small>${p.air>r*AIR_ROW?'💧1':''}</small></div>`;
-  }
+function airRoom(p,night){
+  const f1=Math.min(p.air,AIR_SIZES[0]),f2=Math.max(0,p.air-AIR_SIZES[0]);
+  const row=(n,filled,idx)=>{
+    let s='';for(let j=0;j<n;j++)s+=slotIc(j,j<filled,p);
+    const used=idx===0?p.air>0:p.air>AIR_SIZES[0];
+    return `<div class="arow ${idx===1&&p.air<AIR_SIZES[0]?'lock':''}"><span class="slots">${s}</span><span class="cst" title="Water per night while occupied">${used?'<b>':''}1${icon('water')}${used?'</b>':''}</span></div>`;
+  };
   const absorb=p.air+(hasRoom(p,'sealdoor')?1:0);
-  return `<div class="airlock"><div class="al">Airlock <small>absorbs ${absorb} ☢ per night</small></div>${h}</div>`;
+  let h=`<div class="rm air"><div class="rh"><b>Airlock</b><span class="up">${T(`absorbs ${absorb} ☢ per night`)}</span></div><div class="arows">${row(AIR_SIZES[0],f1,0)}${row(AIR_SIZES[1],f2,1)}</div>`;
+  if(night){
+    const mx=recruitMax(p);if(V.recN>mx)V.recN=mx;
+    h+=`<div class="recruit"><b>Recruit</b> <span class="muted">${T(`Supplies ${nSup(p)} · Airlock free ${AIR_MAX-p.air}`)}</span><div class="stepper"><button data-a="recdn">−</button><span>${V.recN}</span><button data-a="recup">+</button><button class="mini go" data-a="recruit" ${V.recN?'':'disabled'}>Recruit ${V.recN||''}</button><button class="mini" data-a="recmax">Max</button></div></div>`;
+  }
+  return h+`</div>`;
 }
 function roomCard(p,i,night){
   const r=p.rooms[i],d=ROOMS[r.k];
   const full=isFull(r);
-  const slots=Array.from({length:Math.max(d.cap,r.pop)},(_,j)=>`<i class="sv ${j<r.pop?'f':''}" style="--c:${p.color.hex}"></i>`).join('');
+  const up=d.up?`<span class="up" title="Supplies per night while occupied">${d.up}${icon('food')}</span>`:'<span class="up"></span>';
+  if(!r.built){
+    const empty=Array.from({length:d.cap},(_,j)=>slotIc(j,false,p)).join('');
+    return `<div class="rm unbuilt"><div class="rh"><b>${esc(d.n)}</b>${up}</div><div class="rw">${esc(d.w)}</div><div class="slots">${empty}</div><div class="rt">${esc(d.t)}</div>
+      ${night?`<div class="ctl"><button class="mini go" data-a="build" data-i="${i}" ${nMat(p)>=buildCost(p)?'':'disabled'}>Build · ${buildCost(p)} Material${buildCost(p)>1?'s':''}</button></div>`:''}<span class="bgear">${icon('gear')}</span></div>`;
+  }
+  const slots=Array.from({length:Math.max(d.cap,r.pop)},(_,j)=>slotIc(j,j<r.pop,p)).join('');
   let ctl='';
   if(night){
-    if(!r.built){ctl=`<button class="mini" data-a="build" data-i="${i}" ${nMat(p)>=buildCost(p)?'':'disabled'}>Build · ${buildCost(p)} Material${buildCost(p)>1?'s':''}</button>`}
-    else{
-      if(p.air>0&&r.pop<d.cap)ctl+=`<button class="mini" data-a="move" data-i="${i}" data-n="1">+1 from Airlock</button><button class="mini" data-a="move" data-i="${i}" data-n="9">Fill</button>`;
-      if(full&&!r.used&&NIGHT_ABILITY.includes(r.k)&&!(r.k==='barracks'&&r.pop>=8))ctl+=`<button class="mini go" data-a="ability" data-i="${i}">Use ability</button>`;
-    }
+    if(p.air>0&&r.pop<d.cap)ctl+=`<button class="mini" data-a="move" data-i="${i}" data-n="1">+1 from Airlock</button><button class="mini" data-a="move" data-i="${i}" data-n="9">Fill</button>`;
+    if(full&&!r.used&&NIGHT_ABILITY.includes(r.k)&&!(r.k==='barracks'&&r.pop>=8))ctl+=`<button class="mini go" data-a="ability" data-i="${i}">Use ability</button>`;
   }
-  const state=!r.built?'unbuilt':full?'active':'built';
-  return `<div class="room ${state} ${r.used?'used':''}"><div class="rh"><b>${esc(d.n)}</b><span class="up" title="Supplies per night while occupied">🍽${d.up}</span></div>
+  return `<div class="rm ${full?'active':'built'} ${r.used?'used':''}"><i class="lamp"></i><div class="rh"><b>${esc(d.n)}</b>${up}</div>
     <div class="rw">${esc(d.w)}${r.used?' · used':''}</div><div class="slots">${slots}</div>
     <div class="rt">${esc(d.t)}</div>${ctl?`<div class="ctl">${ctl}</div>`:''}</div>`;
 }
-function shelterHtml(p,chg){
+function nightPanel(){
+  const sv=icon('surv','sm'),cs=I18N.lang==='cs';
+  const rows=[
+    ['event',L2('Overcome Events','Zažehnání událostí')],
+    ['surv',cs?`Krmení přeživších: −${sv} za každou chybějící potravinu`:`Feed Survivors: −${sv} for each missing food`],
+    ['rad',L2('Handle radioactivity','Zvládání radioaktivity')],
+    ['surv',cs?`Nábor přeživších: +${sv} za každou utracenou potravinu`:`Recruit Survivors: +${sv} for each food spent`],
+    ['gear',cs?'Stavba místností: Zaplať 3 materiály za každou postavenou místnost':'Build Rooms: pay 3 materials for each Room built'],
+    ['repair',L2('Repair Equipment','Opravy vybavení')],
+    ['food',cs?`Zkažení potravin: Zahoď všechno ${icon('meat','sm')}. Ponech si pouze 2 ${icon('water','sm')} a všechny ${icon('canned','sm')}`:`Food spoils: discard all ${icon('meat','sm')}. Keep only 2 ${icon('water','sm')} and all ${icon('canned','sm')}`]
+  ];
+  return `<div class="nt"><h5>🌙 ${L2('Night phase','Fáze noci')}</h5>${rows.map(([i,t])=>`<div class="ntl">${icon(i)}<span>${t}</span></div>`).join('')}
+    <div class="ntleg">${icon('gear')} = ${icon('wood')} / ${icon('metal')} / ${icon('chip')}</div></div>`;
+}
+function equipTray(p,night){
+  const bySym={};p.equip.forEach((e,i)=>{(bySym[EQ[e.id].sym]=bySym[EQ[e.id].sym]||[]).push({e,i})});
+  const one=x=>{
+    const q=repairQuote(p,x.e),st=!x.e.fixed?'broken':x.e.used?'used':'ready';
+    return `<div class="eqcol">${eqCard(x.e.id,st)}${!x.e.fixed?(night?`<button class="mini" data-a="repair" data-i="${x.i}" ${canPay(p,q.cost)?'':'disabled'}>Repair ${costHtml(q.cost)}</button>`:`<span class="cc dim">broken · ${costHtml(q.cost)}</span>`):''}</div>`;
+  };
+  let sets='',singles='';
+  for(const sym in bySym){
+    const list=bySym[sym];
+    const L=list.find(x=>EQ[x.e.id].side==='L'),R=list.find(x=>EQ[x.e.id].side==='R');
+    if(L&&R){const full=L.e.fixed&&R.e.fixed;sets+=`<div class="eqset ${full?'full':''}" title="Matching halves">${full?'<span class="bp">+1 SP</span>':''}${one(L)}${one(R)}</div>`}
+    else list.forEach(x=>singles+=one(x));
+  }
+  return sets+singles||'<span class="muted">None yet.</span>';
+}
+function bunkerHtml(p,chg){
   const night=V.night&&V.night.p===p;
   const sc=scoreOf(p);
-  let h=`<div class="shead" style="--c:${p.color.hex}">${p.leader&&ART.leaders[p.leader.id]?portrait(p.leader.id,'por sm'):`<span class="dot big" style="background:${p.color.hex}"></span>`}<div><b>${esc(p.name)}</b>${p.human?'':' <small>(AI)</small>'}<div class="sub">${esc(p.leader?p.leader.n:'')}</div></div><div class="sp" title="Projected Survival Points">${sc.total}<small>SP</small></div></div>`;
-  h+=`<div class="res">${RES_ALL.map(r=>resChip(r,p.res[r],chg.has(r))).join('')}<span class="rc ${chg.has('sv')?'chg':''}" title="Survivors"><span>👤</span><b>${survivors(p)}</b></span></div>`;
-  h+=gauge(p);
-  if(night){
-    const mx=recruitMax(p);if(V.recN>mx)V.recN=mx;
-    h+=`<div class="recruit"><b>Recruit</b> <span class="muted">Supplies ${nSup(p)} · Airlock free ${AIR_MAX-p.air}</span><div class="stepper"><button data-a="recdn">−</button><span>${V.recN}</span><button data-a="recup">+</button><button class="mini go" data-a="recruit" ${V.recN?'':'disabled'}>Recruit ${V.recN||''}</button><button class="mini" data-a="recmax">Max</button></div></div>`;
-  }
-  h+=airlock(p);
-  h+=`<div class="rooms">${p.rooms.map((r,i)=>roomCard(p,i,night)).join('')}</div>`;
-  const broken=p.equip.map((e,i)=>({e,i})).filter(x=>!x.e.fixed),fixed=p.equip.filter(e=>e.fixed);
-  h+=`<div class="eqwrap"><div class="al">Equipment</div>`;
-  h+=broken.length?`<div class="eqline">${broken.map(x=>{
-    const q=repairQuote(p,x.e);
-    return `<div class="eqb">${eqChip(x.e.id,'broken')}${night?`<button class="mini" data-a="repair" data-i="${x.i}" ${canPay(p,q.cost)?'':'disabled'}>Repair ${costHtml(q.cost)}</button>`:`<span class="cc dim">broken · ${costHtml(q.cost)}</span>`}</div>`}).join('')}</div>`:'';
-  h+=fixed.length?`<div class="eqline">${fixed.map(e=>eqChip(e.id,e.used?'used':'ready')).join('')}</div>`:(broken.length?'':'<div class="muted">None yet.</div>');
-  h+=`</div>`;
-  if(p.events.length)h+=`<div class="eqwrap"><div class="al">Overcame</div><div class="eqline">${p.events.map(id=>`<button class="evc small" data-a="infoev" data-id="${id}"><b>${esc(EVENTS[id].n)}</b><span>+${EVENTS[id].sp} SP</span></button>`).join('')}</div></div>`;
+  const stRoom=(r)=>`<div class="rm res ${r}"><div class="lbl">${RN[r]}</div><div class="big">${icon(r)}<b class="${chg.has(r)?'chg':''}">${p.res[r]}</b></div><div class="pile2">${icon(r).repeat(Math.min(p.res[r],16))}</div></div>`;
+  const idx=p.rooms.map((r,i)=>i);
+  const basic=idx.filter(i=>ROOMS[p.rooms[i].k].std),adv=idx.filter(i=>!ROOMS[p.rooms[i].k].std);
+  let h=`<div class="dtop"><div class="leadmini" data-a="leaderinfo" data-p="${p.id}" style="border-color:${p.color.hex}">${p.leader?facePic(p.leader.id):''}<div><b>${esc(p.name)}${p.human?'':' <small>(AI)</small>'}</b><small>${esc(p.leader?p.leader.n:'')}</small></div></div>
+    <div class="dscore" title="Projected Survival Points"><b>${sc.total}</b>SP</div></div>`;
+  h+=`<div class="bunker">${radCol(p)}<div class="bmain">
+    <div class="rm res water wr"><div class="lbl">${L2('Water','Voda')}</div><div class="big">${icon('water')}<b class="${chg.has('water')?'chg':''}">${p.res.water}</b></div><div class="pile2">${icon('water').repeat(Math.min(p.res.water,16))}</div></div>
+    <div class="rm res food fr"><div class="lbl">${L2('Food','Jídlo')}</div><div class="twin"><div><div class="big">${icon('meat')}<b class="${chg.has('meat')?'chg':''}">${p.res.meat}</b></div></div><div><div class="big">${icon('canned')}<b class="${chg.has('canned')?'chg':''}">${p.res.canned}</b></div></div></div><div class="pile2">${icon('meat').repeat(Math.min(p.res.meat,8))}${icon('canned').repeat(Math.min(p.res.canned,8))}</div></div>
+    <div class="col c1">${airRoom(p,night)}${basic.map(i=>roomCard(p,i,night)).join('')}</div>
+    <div class="col c2">${adv.map(i=>roomCard(p,i,night)).join('')}</div>
+    <div class="stor st">${['metal','wood','chip','mun'].map(stRoom).join('')}</div>
+    <div class="nt-wrap nt">${nightPanel()}</div>
+  </div></div>`;
+  h+=`<div class="tray"><div class="trayb"><div class="al">Equipment</div><div class="eqrow">${equipTray(p,night)}</div></div>`;
+  if(p.events.length)h+=`<div class="trayb"><div class="al">Overcame</div><div class="eqrow">${p.events.map(id=>`<button class="evc2" data-a="infoev" data-id="${id}"><b>${esc(EVENTS[id].n)}</b><span>+${EVENTS[id].sp} SP</span></button>`).join('')}</div></div>`;
   const caught=Object.entries(p.caught).filter(([,n])=>n>0);
-  if(caught.length)h+=`<div class="muted small">Wild Game caught: ${caught.map(([e,n])=>`End ${e}×${n}`).join(', ')}</div>`;
-  h+=`<div class="muted small">Score now: events ${sc.events} · rooms ${sc.rooms} (${sc.fullRooms} full) · radiation ${sc.rad} · survivors ${sc.survivors} · equipment ${sc.equip}+${sc.pairs} pairs</div>`;
+  if(caught.length)h+=`<div class="trayb"><div class="al">Wild Game caught</div><div class="muted small">${caught.map(([e,n])=>`End ${e}×${n}`).join(', ')}</div></div>`;
+  h+=`<div class="trayb muted small" style="flex:1 1 260px">${T(`Score now: events ${sc.events} · rooms ${sc.rooms} (${sc.fullRooms} full) · radiation ${sc.rad} · survivors ${sc.survivors} · equipment ${sc.equip}+${sc.pairs} pairs`)}</div></div>`;
   return h;
 }
-function renderSide(){
-  if(!G||!G.players.length)return;
+function renderDrawer(){
+  if(!G||!G.players.length||!$('#drawer'))return;
   if(V.view>=G.players.length)V.view=0;
-  const tabs=G.players.map((p,i)=>`<button class="tab ${i===V.view?'on':''}" style="--c:${p.color.hex}" data-a="view" data-i="${i}"><span class="dot" style="background:${p.color.hex}"></span>${esc(p.name)}<small>${scoreOf(p).total}</small></button>`).join('');
-  $('#tabs').innerHTML=tabs;
   const vp=G.players[V.view];
   const chg=new Set(),pv=V.prev[vp.id];
   const snap=p=>{const o={};RES_ALL.forEach(r=>o[r]=p.res[r]);o.sv=survivors(p);return o};
   if(pv)for(const k in pv)if(pv[k]!==snap(vp)[k])chg.add(k);
   G.players.forEach(p=>V.prev[p.id]=snap(p));
-  $('#shelter').innerHTML=shelterHtml(vp,chg);
+  const tabs=G.players.map((p,i)=>`<button class="tab ${i===V.view?'on':''}" style="--c:${p.color.hex}" data-a="view" data-i="${i}"><span class="dot" style="background:${p.color.hex}"></span>${esc(p.name)}<small>${scoreOf(p).total}</small></button>`).join('');
+  const sc=scoreOf(vp);
+  const res=['wood','metal','chip','mun','meat','water','canned'].map(r=>`<span class="${chg.has(r)?'chg':''} ${['wood','metal','chip'].includes(r)?'':''}" title="${RN[r]}">${icon(r)}<b>${vp.res[r]}</b></span>`).join('');
+  $('#dhandle').innerHTML=`<span class="arrow">▲</span>${tabs}<div class="hres">${res}<span class="${chg.has('sv')?'chg':''}" title="Survivors">${icon('surv')}<b>${survivors(vp)}</b></span></div><div class="hsp" title="Projected Survival Points">${sc.total}<small>SP</small></div>`;
+  const dr=$('#drawer');dr.classList.toggle('open',!!V.drawer);
+  $('#dhandle').classList.toggle('attn',!!(V.night&&!V.drawer));
+  const body=$('#dbody'),sy=body.scrollTop;
+  if(V.drawer||!body.firstChild){body.innerHTML=bunkerHtml(vp,chg);body.scrollTop=sy}
 }
 function renderAction(){
   const el=$('#action');
+  let h='';
   if(V.pm){
     const sel=V.pm.sel;
-    el.innerHTML=`<div class="ahead"><b style="color:${V.pm.p.color.hex}">${esc(V.pm.p.name)}</b> — ${sel==null?'tap one of your glowing Heroes':'tap a highlighted Location to move there'} <span class="muted">(1–2 steps along the arrows; you can't stop on your own Heroes)</span></div>`;
-    return;
+    h=`<div class="ahead"><b style="color:${V.pm.p.color.hex}">${esc(V.pm.p.name)}</b> — ${sel==null?'tap one of your glowing Heroes':'tap a highlighted Location to move there'} <span class="muted">(1–2 steps along the arrows; you can't stop on your own Heroes)</span></div>`;
+  }else if(V.pl){h=`<div class="ahead">${TE(V.pl.prompt)}</div>`}
+  else if(V.pa){
+    const{p,h:hero,acts}=V.pa;
+    h=`<div class="ahead"><b style="color:${p.color.hex}">${esc(p.name)}</b> · Strength ${hero.str} Hero at <b>${esc(LOCS[hero.loc].n)}</b> · <span class="ap">${hero.ap} AP</span> left</div>
+      <div class="acts">${acts.map((a,i)=>`<button class="act" data-a="act" data-i="${i}"><b>${TE(a.label)}</b><small>${TE(a.sub||'')}</small></button>`).join('')}<button class="act end" data-a="act" data-i="done"><b>End this Hero's turn</b><small>Unused Action Points are lost</small></button></div>`;
   }
-  if(V.pl){el.innerHTML=`<div class="ahead">${esc(V.pl.prompt)}</div>`;return}
-  if(V.pa){
-    const{p,h,acts}=V.pa;
-    el.innerHTML=`<div class="ahead"><b style="color:${p.color.hex}">${esc(p.name)}</b> · Strength ${h.str} Hero at <b>${esc(LOCS[h.loc].n)}</b> · <span class="ap">${h.ap} AP</span> left</div>
-      <div class="acts">${acts.map((a,i)=>`<button class="act" data-a="act" data-i="${i}"><b>${a.label}</b><small>${a.sub||''}</small></button>`).join('')}<button class="act end" data-a="act" data-i="done"><b>End this Hero's turn</b><small>Unused Action Points are lost</small></button></div>`;
-    return;
-  }
-  if(V.night){el.innerHTML=`<div class="ahead"><b style="color:${V.night.p.color.hex}">${esc(V.night.p.name)}</b> — manage your Shelter: recruit, move Survivors into Rooms, build, repair. Press <b>End turn</b> when done.</div>`;return}
-  const last=V.logs.slice(-4).map(l=>`<div class="tick ${l.cls||''}">${esc(l.msg)}</div>`).join('');
-  el.innerHTML=`<div class="ticker">${last||'<div class="tick">Welcome to the wasteland.</div>'}</div>`;
+  el.innerHTML=h;el.classList.toggle('on',!!h);
 }
 function renderLog(){
   const el=$('#log');if(!el)return;
-  el.innerHTML=V.logs.slice(-120).map(l=>`<div class="ll ${l.cls||''}">${esc(l.msg)}</div>`).join('');
+  el.innerHTML=V.logs.slice(-120).map(l=>`<div class="ll ${l.cls||''}">${TE(l.msg)}</div>`).join('');
   el.scrollTop=el.scrollHeight;
 }
 function renderAll(){
   if(!G)return;
-  renderTop();renderBoard();renderSide();renderAction();renderTurn();
+  renderHud();renderBoard();renderDrawer();renderAction();renderTurn();
   const night=G.phase==='night';
   $('#app').classList.toggle('night',night);$('#sky').classList.toggle('on',night&&V.live);
 }
@@ -381,7 +406,7 @@ function popFx(target,text,kind){
   const off=arr.length*28;arr.push(now);
   const el=document.createElement('div');
   el.className='pop '+(kind||'');
-  el.textContent=text;
+  el.innerHTML=ic(esc(tr(text)));
   el.style.left=Math.max(60,Math.min(innerWidth-60,a.x))+'px';
   el.style.top=Math.max(8,a.y-off)+'px';
   $('#fxlayer').appendChild(el);
@@ -460,9 +485,13 @@ window.UI={
   },
   async chooseOne(title,options,text){
     if(/Leader/.test(title))coach('leader','Choose a Leader','Your Leader decides your <b>starting Locations</b> (where your 4 Heroes begin), your starting Resources and one broken piece of Equipment. The oldest Leader plays first.');
+    if(options.length&&options[0].leader)return openModal((box,done)=>{head(box,esc(title),text?esc(text):'');
+      const grid=document.createElement('div');grid.className='lgrid';
+      options.forEach(o=>{const l=LEADERS.find(x=>x.id===o.leader),b=document.createElement('button');b.className='lopt';b.innerHTML=leaderCard(l);b.onclick=()=>{sfx('select');done(o.id)};grid.appendChild(b)});
+      box.appendChild(grid)},{huge:true});
     return openModal((box,done)=>{head(box,esc(title),text?esc(text):'');
       const list=document.createElement('div');list.className='olist';
-      options.forEach(o=>{const b=btn((ART.leaders[o.id]?portrait(o.id,'por'):'')+esc(o.label),'opt',()=>{sfx('select');done(o.id)},o.sub?esc(o.sub):'');if(ART.leaders[o.id])b.classList.add('haspor');list.appendChild(b)});
+      options.forEach(o=>{const b=btn(esc(o.label),'opt',()=>{sfx('select');done(o.id)},o.sub?esc(o.sub):'');list.appendChild(b)});
       box.appendChild(list)});
   },
   async chooseMany(title,options,count,text){
@@ -493,7 +522,7 @@ window.UI={
       const upd=()=>{const s=Object.values(pay).reduce((a,b)=>a+b,0);ok.disabled=s!==o.n;ok.querySelector('.bl').textContent=`Confirm (${s}/${o.n})`;o.allowed.forEach(r=>{rows.querySelector(`[data-r="${r}"] span`).textContent=pay[r]})};
       o.allowed.forEach(r=>{
         const row=document.createElement('div');row.className='stepper';row.dataset.r=r;
-        row.innerHTML=`<em>${RI[r]} ${RN[r]} <small>(have ${o.p.res[r]})</small></em>`;
+        row.innerHTML=`<em>${icon(r)} ${RN[r]} <small>(have ${o.p.res[r]})</small></em>`;
         const dn=document.createElement('button');dn.textContent='−';dn.onclick=()=>{pay[r]=Math.max(0,pay[r]-1);upd()};
         const sp=document.createElement('span');sp.textContent='0';
         const up=document.createElement('button');up.textContent='+';up.onclick=()=>{const s=Object.values(pay).reduce((a,b)=>a+b,0);if(pay[r]<o.p.res[r]&&s<o.n){pay[r]++;upd()}};
@@ -501,26 +530,26 @@ window.UI={
       box.appendChild(rows);box.appendChild(ok);upd()});
   },
   pickMove(p,opts){
-    V.view=p.id;V.turn={p,phase:'day'};V.curHero=null;
-    coach('move1','Move a Hero','It is your turn! Tap one of your <b>glowing Heroes</b> (the number is its Strength = Action Points). Hollow tokens have not moved yet this day.');
+    V.view=p.id;V.turn={p,phase:'day'};V.curHero=null;V.drawer=false;V.ev=false;
+    coach('move1','Move a Hero','It is your turn! Tap one of your <b>glowing Heroes</b> (the number is its Strength = Action Points). Hollow tokens have not moved yet this day. Tip: pull up the bar at the bottom to see your <b>bunker</b>, and press <b>Events</b> at the top for the Convoy board.');
     sfx('turn');
     return new Promise(res=>{V.pm={p,opts,sel:null,res};renderAll()});
   },
   pickLocation(p,locs,prompt){
-    V.view=p.id;
+    V.view=p.id;V.drawer=false;V.ev=false;
     coach('place','Place your Heroes','The game starts by placing your 4 Heroes (Strength 5, 4, 3, 3), one at a time, on the <b>highlighted Locations</b> — your Leader\'s starting spots. Pick where you want to gather first.');
     return new Promise(res=>{V.pl={p,locs,prompt,res};renderAll()});
   },
   pickAction(p,h,acts){
-    V.view=p.id;
+    V.view=p.id;V.drawer=false;V.ev=false;
     coach('act','Actions','Your Hero has Action Points (AP) equal to its Strength. <b>Scavenge</b> the Location\'s resources, <b>Hunt</b> wild game, <b>Search</b> city piles or <b>Salvage</b> Equipment. Unused AP are lost, so spend them — or press <b>End Hero\'s turn</b>.');
     return new Promise(res=>{V.pa={p,h,acts,res};renderAll()});
   },
   async shelter(p){
-    V.view=p.id;V.night={p};V.recN=0;V.turn={p,phase:'night'};
+    V.view=p.id;V.night={p};V.recN=0;V.turn={p,phase:'night'};V.drawer=true;V.ev=false;
     coach('shelter','Your Shelter','<b>Recruit</b> Survivors with Supplies (they wait in the Airlock), then <b>move them into Rooms</b>. Full Rooms score and unlock abilities, but Survivors in Rooms can never leave. You can also <b>Build</b> Rooms with Materials and <b>Repair</b> Equipment. Press <b>End turn</b> when finished.');
     await new Promise(res=>{V.night.res=res;renderAll()});
-    V.night=null;renderAll();
+    V.night=null;V.drawer=false;renderAll();
   },
   async handoff(p){
     return openModal((box,done)=>{head(box,`Pass the device to <span style="color:${p.color.hex}">${esc(p.name)}</span>`,'Everyone else look away — only the next player needs the screen.');box.appendChild(btn("I'm ready",'pri',()=>done()))});
@@ -535,13 +564,13 @@ window.UI={
   async nightReport(p){
     if(!p.report.length)return;
     return openModal((box,done)=>{head(box,`${esc(p.name)} — the night so far`);
-      const d=document.createElement('div');d.className='mtext';d.innerHTML=p.report.map(x=>`<div>• ${esc(x)}</div>`).join('');box.appendChild(d);
+      const d=document.createElement('div');d.className='mtext';d.innerHTML=p.report.map(x=>`<div>• ${TE(x)}</div>`).join('');box.appendChild(d);
       box.appendChild(btn('Continue','pri',()=>done()))});
   },
   async showPile(city,tiles){
     const nm={water:'💧 Water',canned:'🥫 Canned',wood:'🪵 Wood',metal:'🔩 Metal',chip:'💾 Chip',mun:'💥 Munitions',algae:'🌿 Algae',empty:'∅ Empty'};
     return openModal((box,done)=>{head(box,`${esc(LOCS[city].n)} — Search pile`,'Top of the pile first. Keep it secret!');
-      const d=document.createElement('div');d.className='pile';d.innerHTML=tiles.map(t=>`<span>${nm[t]}</span>`).join('');box.appendChild(d);
+      const d=document.createElement('div');d.className='pile';d.innerHTML=ic(tiles.map(t=>`<span>${nm[t]}</span>`).join(''));box.appendChild(d);
       box.appendChild(btn('Close','pri',()=>done()))});
   },
   async final(rows){
@@ -551,7 +580,7 @@ window.UI={
     return openModal((box,done)=>{
       head(box,`<span style="color:${w.p.color.hex}">${esc(w.p.name)}</span> escapes with Convoy!`,`Final scores after 6 days.`);
       const t=document.createElement('table');t.className='score';
-      t.innerHTML=`<tr><th></th><th>Events</th><th>Rooms</th><th>☢</th><th>👤</th><th>Equip</th><th>Pairs</th><th>Total</th></tr>`+rows.map((r,i)=>`<tr class="${i===0?'win':''}"><td><span class="dot" style="background:${r.p.color.hex}"></span>${esc(r.p.name)}</td><td>${r.s.events}</td><td>${r.s.rooms}<small>(${r.s.fullRooms})</small></td><td>${r.s.rad}</td><td>${r.s.survivors}</td><td>${r.s.equip}</td><td>${r.s.pairs}</td><td><b>${r.s.total}</b></td></tr>`).join('');
+      t.innerHTML=ic(`<tr><th></th><th>Events</th><th>Rooms</th><th>☢</th><th>👤</th><th>Equip</th><th>Pairs</th><th>Total</th></tr>`+rows.map((r,i)=>`<tr class="${i===0?'win':''}"><td><span class="dot" style="background:${r.p.color.hex}"></span>${esc(r.p.name)}</td><td>${r.s.events}</td><td>${r.s.rooms}<small>(${r.s.fullRooms})</small></td><td>${r.s.rad}</td><td>${r.s.survivors}</td><td>${r.s.equip}</td><td>${r.s.pairs}</td><td><b>${r.s.total}</b></td></tr>`).join(''));
       box.appendChild(t);
       const n=document.createElement('p');n.className='mtext muted';n.textContent='Ties: most Supplies, then most Materials + Munitions.';box.appendChild(n);
       const row=document.createElement('div');row.className='mrow';
@@ -565,7 +594,10 @@ const P_ui=p=>({p:p.id}),L_ui=l=>({loc:l});
 
 /* ---------- click handling ---------- */
 const handlers={
-  view(t){V.view=+t.dataset.i;const p=G.players[V.view];V.prev[p.id]=null;renderSide()},
+  view(t){V.view=+t.dataset.i;const p=G.players[V.view];V.prev[p.id]=null;renderDrawer();return false},
+  drawer(){V.drawer=!V.drawer;if(V.drawer)V.ev=false;renderHud();renderDrawer()},
+  evtoggle(){V.ev=!V.ev;if(V.ev)V.drawer=false;renderHud();renderDrawer()},
+  leaderinfo(t){const p=G.players[+t.dataset.p];if(p.leader)openModal((box,done)=>{head(box,esc(p.name));const w=document.createElement('div');w.className='lgrid';w.innerHTML=leaderCard(p.leader);box.appendChild(w);box.appendChild(btn('Close','pri',()=>done()))})},
   hero(t){
     const p=G.players[+t.dataset.p],hi=+t.dataset.hi;
     if(V.pm&&V.pm.p===p&&p.heroes[hi].state==='idle'&&V.pm.opts.some(o=>o.hi===hi)){
@@ -592,7 +624,10 @@ const handlers={
     if(V.pa){const r=V.pa.res;V.pa=null;r({id:'done'})}
     else if(V.night){const r=V.night.res;if(r)r()}
   },
-  infoeq(t){const e=EQ[t.dataset.id];infoModal(esc(e.n),`<p>${esc(e.t)}</p><p>Repair cost: ${costHtml(e.cost)}</p><p>Pair symbol <span style="color:${SYM_COL[e.sym]}">${SYMS[e.sym]}</span> (${e.side==='L'?'left':'right'} half): repaired matching halves score +1 SP.</p>`)},
+  infoeq(t){const id=t.dataset.id,e=EQ[id],mate=Object.keys(EQ).find(k=>EQ[k].sym===e.sym&&k!==id);
+    openModal((box,done)=>{head(box,esc(e.n));const w=document.createElement('div');w.className='lgrid';
+      w.innerHTML=`<div style="display:flex;align-items:center">${eqCard(id,'ready',{cls:'big',act:null})}${mate?eqCard(mate,'ready',{cls:'big',act:null}):''}</div>`;box.appendChild(w);
+      const d=document.createElement('div');d.className='mtext';d.innerHTML=ic(`<p>${esc(e.t)}</p><p>Repair cost: ${costHtml(e.cost)}</p><p>Pair: ${esc(e.n)} + ${mate?esc(EQ[mate].n):''} — when both are repaired the two halves of the symbol join: +1 SP.</p>`);box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))})},
   infoev(t){const e=EVENTS[t.dataset.id];infoModal(esc(e.n),`<p>${esc(e.t)}</p><p>Overcome: ${costHtml(e.cost)} → +${e.sp} SP</p>`)},
   recdn(){V.recN=Math.max(0,V.recN-1);renderAll()},
   recup(){V.recN=Math.min(recruitMax(V.night.p),V.recN+1);renderAll()},
@@ -607,7 +642,7 @@ const handlers={
   pause(){if(V.live)setPaused(true)},
   coachx(){hideCoach()}
 };
-const ALWAYS=['tmusic','tsfx','pause','coachx'];
+const ALWAYS=['tmusic','tsfx','pause','coachx','drawer','evtoggle','view'];
 document.addEventListener('click',e=>{
   const bt=e.target.closest('button');if(bt&&!bt.disabled&&!bt.closest('#menu'))sfx('click');
   const t=e.target.closest('[data-a]');if(!t)return;
@@ -630,12 +665,12 @@ const RULES_HTML=`<p><b>Goal.</b> Survive 6 days and finish with the most <b>Sur
 <p><b>Each day:</b> <b>Dawn</b> (Locations refill, a Convoy Event is revealed) → <b>Day</b> (each player in turn moves a Hero, then it acts) → <b>Night</b> (events, feeding, radiation, recruiting, building, repairs).</p>
 <p><b>Map.</b> The 8 Locations form one ring linked by two-way green arrows. A Hero moves <b>1–2 steps</b> along the arrows and cannot stop on a Location holding another Hero of its colour.</p>
 <p><b>Heroes</b> have Strength 5/4/3/3 = Action Points (AP). Arriving where weaker <i>activated</i> Heroes stand lets you apply <b>Pressure</b>: they hand over 1 Supply/Material per point of Strength difference — or spend 💥 Munitions to block it.</p>
-<p><b>Night:</b> pay Supplies (🍖💧🥫) for every occupied Room and 💧 for each used Airlock row, or Survivors starve. Airlock Survivors absorb radiation. Rooms only work when <i>every</i> space is filled; Survivors in Rooms can never leave.</p>
+<p><b>Night:</b> pay Supplies (🍖💧🥫) for every occupied Room and 💧 for each used Airlock row (row 1 holds 2 Survivors, row 2 holds 5), or Survivors starve. Airlock Survivors absorb radiation. Rooms only work when <i>every</i> space is filled; Survivors in Rooms can never leave.</p>
 <p><b>Score:</b> Overcome Events + fully populated Rooms (1→0, 2→1, 3→2, 4→4, 5→7, 6→11, 7→17) + radiation level + Survivors + repaired Equipment (+1 per matching symbol pair).</p>
 <p class="muted">Ties: most Supplies, then most Materials + Munitions.</p>`;
 function showRules(){
   return openModal((box,done)=>{head(box,'How a game works');
-    const d=document.createElement('div');d.className='mtext';d.innerHTML=I18N.rules(RULES_HTML);
+    const d=document.createElement('div');d.className='mtext';d.innerHTML=ic(I18N.rules(RULES_HTML));
     box.appendChild(d);box.appendChild(btn('Close','pri',()=>done()))},{wide:true});
 }
 
@@ -692,7 +727,7 @@ function panel(view,arg){
   }else if(view==='settings'){
     head(box,'Settings');settingsInto(box);box.appendChild(btn('Back','pri',back));
   }else if(view==='rules'){
-    head(box,'How a game works');const d=document.createElement('div');d.className='mtext';d.innerHTML=I18N.rules(RULES_HTML);box.appendChild(d);box.appendChild(btn('Back','pri',back));
+    head(box,'How a game works');const d=document.createElement('div');d.className='mtext';d.innerHTML=ic(I18N.rules(RULES_HTML));box.appendChild(d);box.appendChild(btn('Back','pri',back));
   }else if(view==='slides'){
     slidesInto(box,false,go=>{if(go)panel('confirm','tutorial');else back()});
   }else if(view==='art'){
@@ -767,7 +802,7 @@ function slidesInto(box,fromMenu,onClose){
   const draw=()=>{
     const s0=SLIDES[i],cs=I18N.slide(i,null),s=cs?{...s0,t:cs.t,h:cs.h}:s0;box.innerHTML='';
     const d=document.createElement('div');d.className='slide';
-    d.innerHTML=`<h2>${esc(s.t)}</h2><div class="viz">${s.viz}</div><p class="mtext">${s.h}</p><div class="dots">${SLIDES.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div>`;
+    d.innerHTML=`<h2>${esc(s.t)}</h2><div class="viz">${ic(s.viz)}</div><p class="mtext">${ic(s.h)}</p><div class="dots">${SLIDES.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div>`;
     box.appendChild(d);
     const row=document.createElement('div');row.className='mrow';
     if(i>0)row.appendChild(btn('Back','',()=>{i--;draw()}));
@@ -810,7 +845,7 @@ function buildMenu(){
   });
 }
 function abortGame(){
-  V.gen++;V.paused=false;
+  V.gen++;V.paused=false;V.drawer=false;V.ev=false;$('#dbody').innerHTML='';$('#board').dataset.ctr='';
   const r=V.resume;V.resume=[];r.forEach(f=>f());
   V.pm=V.pa=V.pl=V.night=null;V.turn=null;V.curHero=null;V.busy=false;
   if(V._closeModal)V._closeModal();

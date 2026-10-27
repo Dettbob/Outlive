@@ -146,7 +146,7 @@ const I18N=(function(){
     'Mix humans and AI freely — all-human games work as hot-seat (the device is passed around). Switch every seat to AI to just watch.':'Lidi a AI můžete libovolně míchat — hra jen s lidmi funguje na jednom zařízení (předává se dál). Přepnutím všech míst na AI můžete jen sledovat.',
     '🎵 Music':'🎵 Hudba','Music volume':'Hlasitost hudby','🔊 Sound effects':'🔊 Zvukové efekty','Effects volume':'Hlasitost efektů','Opponent speed':'Rychlost soupeřů',
     'Slow':'Pomalu','Normal':'Normálně','Fast':'Rychle','Turbo':'Turbo','Animations':'Animace','Follow opponents (show their Shelter)':'Sledovat soupeře (ukázat jejich úkryt)',
-    'Your own map & Leader pictures':'Vaše vlastní mapa a obrázky vůdců','Language':'Jazyk','Leader name':'Jméno vůdce','Eight Locations connected in a ring of arrows':'Osm lokací propojených v okruhu šipek','Music on/off':'Hudba zap./vyp.','Sound effects on/off':'Zvukové efekty zap./vyp.','Pause menu (Esc)':'Menu pauzy (Esc)',
+    'Your own map & Leader pictures':'Vaše vlastní mapa a obrázky vůdců','Language':'Jazyk','Water per night while occupied':'Voda za noc, je-li obsazeno','Start positions':'Startovní pozice','Starting resources':'Počáteční suroviny','Starting equipment':'Počáteční vybavení','Age':'Věk','Convoy Board':'Deska Konvoje','Active':'Aktivní','✓ Overcome ·':'✓ Zažehnáno ·','needs 1':'vyžaduje 1','next:':'další:','· empty':'· prázdné','tiles':'žetonů','taken':'odebrány','Night phase':'Fáze noci','Wild Game caught':'Ulovená kořist','Matching halves':'Odpovídající poloviny','tonight':'dnes v noci','Food':'Jídlo','Overcome Events':'Zažehnání událostí','Leader name':'Jméno vůdce','Eight Locations connected in a ring of arrows':'Osm lokací propojených v okruhu šipek','Music on/off':'Hudba zap./vyp.','Sound effects on/off':'Zvukové efekty zap./vyp.','Pause menu (Esc)':'Menu pauzy (Esc)',
     'Paused':'Pozastaveno','Tutorial game':'Tutoriálová hra','The wasteland waits for you.':'Pustina na vás čeká.','Resume':'Pokračovat ve hře','Tutorial primer':'Tutoriál (přehled)',
     'Restart game':'Restartovat hru','Restart this game?':'Restartovat tuto hru?','Start the tutorial?':'Spustit tutoriál?','Return to the main menu?':'Vrátit se do hlavního menu?',
     'Your current game will be abandoned.':'Rozehraná hra bude opuštěna.','How a game works':'Jak hra probíhá',
@@ -163,7 +163,7 @@ const I18N=(function(){
   /* ---- sentence patterns. {n} = translate group n again; $n = copy group n ---- */
   const RULES=[
     [/^DAY (\d)$/,'DEN $1'],[/^Night (\d)$/,'Noc $1'],[/^Day (\d)$/,'Den $1'],[/^Player (\d)$/,'Hráč $1'],[/^(.+) first$/,'$1 začíná'],
-    [/^Outlive · (.+)$/,'Pustina · $1'],[/^Tutorial · (.+)$/,'Tutoriál · {1}'],
+    [/^tonight \+(\d)$/,'dnes v noci +$1'],[/^Pair: (.+) \+ (.*) — when both are repaired the two halves of the symbol join: \+1 SP\.$/,'Sada: {1} + {2} — po opravě obou se obě poloviny symbolu spojí: +1 BP.'],[/^Outlive · (.+)$/,'Pustina · $1'],[/^Tutorial · (.+)$/,'Tutoriál · {1}'],
     [/^☢ tonight \+(\d)$/,'☢ dnes v noci +$1'],[/^🦌 (\d+) · next:$/,'🦌 $1 · další:'],[/^🦌 (\d+) · empty$/,'🦌 $1 · prázdné'],[/^🔎 (\d+) tiles$/,'🔎 $1 žetonů'],
     [/^Strength (\d)$/,'Síla $1'],[/^Radioactivity: (-?\d+) \(scores (.+) SP\)$/,'Radioaktivita: $1 (BP: $2)'],[/^absorbs (\d+) ☢ per night$/,'pohltí $1 ☢ za noc'],
     [/^Build · (\d+) Materials?$/,'Postavit · $1 mat.'],[/^(.+) · used$/,'{1} · použito'],[/^Recruit (\d+)$/,'Naverbovat $1'],
@@ -246,7 +246,7 @@ const I18N=(function(){
     night:'V noci se řeší události, všichni <b>krmí své přeživší</b> a čelí <b>radiaci</b>; poté spravujete úkryt: nábor, obsazení místností, stavba a opravy.',
     ai:'Když horní lišta říká <b>(AI) hraje</b>, táhne soupeř. Sledujte desku: jeho hrdina doletí na novou lokaci, plovoucí štítky ukážou, co získal, a lišta popisuje každý krok. Rychlost změníte v menu pauzy.',
     event:'Každý den se odhalí nová událost. Její škodlivý efekt se opakuje každý den, dokud ji někdo v noci <b>nezažehne</b> zaplacením ceny — což navíc dává body přežití.',
-    move1:'Jste na tahu! Klepněte na jednoho ze svých <b>svítících hrdinů</b> (číslo je jeho síla = akční body). Ležící (neaktivní) hrdinové se tento den ještě nehýbali.',
+    move1:'Jste na tahu! Klepněte na jednoho ze svých <b>svítících hrdinů</b> (číslo je jeho síla = akční body). Ležící (neaktivní) hrdinové se tento den ještě nehýbali. Tip: vytáhněte dolní lištu a uvidíte svůj <b>bunkr</b>; tlačítko <b>Události</b> nahoře otevře desku Konvoje.',
     move2:'<b>Zvýrazněné lokace</b> jsou místa, kam může tento hrdina jít: 1 nebo 2 kroky po zářících šipkách. Nesmíte skončit v lokaci, kde už stojí jiný váš hrdina.',
     act:'Váš hrdina má akční body (AP) rovné své síle. Můžete <b>sbírat</b> suroviny, <b>lovit</b> kořist, <b>prohledávat</b> města nebo <b>sbírat vybavení</b>. Nevyužité AP propadají — utraťte je, nebo stiskněte <b>Ukončit tah hrdiny</b>.',
     press:'Příchod k <i>slabším aktivním</i> hrdinům vám umožní vyvinout <b>nátlak</b>: odevzdají 1 potravinu/materiál za každý bod rozdílu síly — pokud neutratí 💥 střelivo na odpor.',
@@ -257,7 +257,7 @@ const I18N=(function(){
 <p><b>Každý den:</b> <b>Úsvit</b> (lokace se doplní, odhalí se událost Konvoje) → <b>Den</b> (hráči postupně pohybují hrdiny a ti provádějí akce) → <b>Noc</b> (události, krmení, radiace, nábor, stavba, opravy).</p>
 <p><b>Mapa.</b> 8 lokací tvoří jeden okruh spojený obousměrnými zelenými šipkami. Hrdina se pohne o <b>1–2 pole</b> po šipkách a nesmí skončit v lokaci, kde už je jiný hrdina jeho barvy.</p>
 <p><b>Hrdinové</b> mají sílu 5/4/3/3 = akční body (AP). Příchod k slabším <i>aktivním</i> hrdinům umožní vyvinout <b>nátlak</b>: odevzdají 1 potravinu/materiál za každý bod rozdílu síly — nebo utratí 💥 střelivo na obranu.</p>
-<p><b>Noc:</b> zaplaťte potraviny (🍖💧🥫) za každou obsazenou místnost a 💧 za každou použitou řadu přechodové komory, jinak přeživší zahynou. Přeživší v komoře pohlcují radiaci. Efekt místnosti funguje, jen když je <i>každé</i> pole obsazeno; přeživší v místnostech už nikdy neodejdou.</p>
+<p><b>Noc:</b> zaplaťte potraviny (🍖💧🥫) za každou obsazenou místnost a 💧 za každou použitou řadu přechodové komory (řada 1 pojme 2 přeživší, řada 2 pojme 5), jinak přeživší zahynou. Přeživší v komoře pohlcují radiaci. Efekt místnosti funguje, jen když je <i>každé</i> pole obsazeno; přeživší v místnostech už nikdy neodejdou.</p>
 <p><b>Body:</b> zažehnané události + plně obsazené místnosti (1→0, 2→1, 3→2, 4→4, 5→7, 6→11, 7→17) + stupeň radioaktivity + přeživší + opravené vybavení (+1 za každou dvojici stejných symbolů).</p>
 <p class="muted">Remíza: nejvíce potravin, poté nejvíce materiálů + střeliva.</p>`;
   const SLIDES_CS=[
